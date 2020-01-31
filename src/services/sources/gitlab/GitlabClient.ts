@@ -38,4 +38,30 @@ export class GitlabClient implements BuildServerClient {
         console.log(`ERROR ${error}`);
       });
   }
+
+  public async listChangesAndDeployments(projectId: number, releaseBranch: string): Promise<any> {
+      this
+        .loadCommits(projectId, releaseBranch, 20)
+        .then((commits: any[]) => {
+          const lines = commits.map(c => {
+            const isMergeCommit = c.parent_ids.length > 1;
+            return `${c.short_id}\t${c.created_at}\t${isMergeCommit}`;
+          });
+          console.log(`
+  CHANGES ON MASTER
+  revision\ttime\tisMergeCommit
+  ${lines.join(`\n`)}`);
+        }).then(() => {
+          return this.loadPipelines(projectId, releaseBranch);
+        })
+        .then((pipelines: any[]) => {
+          const lines = pipelines.map(p => {
+            return `${p.sha}\t${p.created_at}\t${p.status}`;
+          });
+          console.log(`
+  DEPLOYMENTS FROM MASTER
+  revision\ttime\tstatus
+  ${lines.join(`\n`)}`);
+        });
+  }
 }
