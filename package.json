@@ -1,0 +1,51 @@
+{
+  "name": "cd-metrics-2",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test:unit": "./node_modules/.bin/jest -c jest.config.js",
+    "test:integration": "./node_modules/.bin/jest -c jest.config.integration.js"
+  },
+  "dependencies": {
+    "@types/lodash": "^4.14.149",
+    "axios": "^0.19.2",
+    "gitlab": "^14.2.2",
+    "lodash": "^4.17.15",
+    "moment": "^2.24.0",
+    "ts-node": "^8.5.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^25.1.0",
+    "@types/node": "^13.1.2",
+    "jest": "^25.1.0",
+    "nodemon": "^2.0.2",
+    "supertest": "^4.0.2",
+    "ts-jest": "^25.1.0",
+    "tslint": "^5.20.1",
+    "tslint-config-standard": "^9.0.0",
+    "typescript": "^3.7.4"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "rules": {
+      "no-console": 1
+    },
+    "parserOptions": {
+      "parser": "@typescript-eslint/parser"
+    },
+    "overrides": [
+      {
+        "files": [
+          "**/__tests__/*.{j,t}s?(x)",
+          "**/tests/unit/**/*.spec.{j,t}s?(x)"
+        ],
+        "env": {
+          "jest": true
+        }
+      }
+    ]
+  }
+}
