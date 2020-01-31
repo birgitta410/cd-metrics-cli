@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "cli": "./node_modules/.bin/ts-node src/index.ts",
     "test:unit": "./node_modules/.bin/jest -c jest.config.js",
     "test:integration": "./node_modules/.bin/jest -c jest.config.integration.js"
   },
@@ -12,7 +13,8 @@
     "gitlab": "^14.2.2",
     "lodash": "^4.17.15",
     "moment": "^2.24.0",
-    "ts-node": "^8.5.4"
+    "ts-node": "^8.5.4",
+    "yargs": "^15.1.0"
   },
   "devDependencies": {
     "@types/jest": "^25.1.0",
