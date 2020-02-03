@@ -30,6 +30,9 @@ export class GitlabClient implements BuildServerClient {
       ref: query.branch,
       updated_after: query.since,
       updated_before: query.until
+    }).then((result: any) => {
+      console.log(`Got ${result.length} pipeline runs`);
+      return result;
     });
   }
 
@@ -39,11 +42,11 @@ export class GitlabClient implements BuildServerClient {
   ): Promise<any> {
     return this.api.Commits.all(projectId, {
       refName: query.branch,
-      maxPages: 1,
       since: query.since,
       until: query.until
     })
       .then((result: any) => {
+        console.log(`Got ${result.length} commits`);
         return result;
       })
       .catch(error => {
