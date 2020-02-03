@@ -42,7 +42,7 @@ describe("GitlabClient.loadData", () => {
       }
     ]);
     return new GitlabClient(apiMock, new GitlabConfig("someUrl", 1234, "the-project"))
-      .loadPipelines()
+      .loadJobs()
       .then(result => {
         expect(result).toBeDefined();
         

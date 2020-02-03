@@ -25,76 +25,67 @@ export class GitlabClient implements BuildServerClient {
     this.config = config;
   }
 
-  public async loadPipelines(projectId: number, query: GitlabQuery): Promise<any> {
-    return this.api.Pipelines.all(projectId, { 
+  public async loadJobs(projectId: number, query: GitlabQuery): Promise<any> {
+    const result = await <any[]><unknown>this.api.Pipelines.all(projectId, { 
       ref: query.branch,
       updated_after: query.since,
       updated_before: query.until
-    }).then((result: any) => {
-      console.log(`Got ${result.length} pipeline runs`);
-      return result;
     });
+    
+    console.log(`Got ${result.length} pipeline runs`);
+    return result;
   }
 
   public async loadCommits(
     projectId: number,
     query: GitlabQuery
   ): Promise<any> {
-    return this.api.Commits.all(projectId, {
+
+    const commits = await <any[]><unknown>this.api.Commits.all(projectId, {
       refName: query.branch,
       since: query.since,
       until: query.until
-    })
-      .then((result: any) => {
-        console.log(`Got ${result.length} commits`);
-        return result;
-      })
-      .catch(error => {
-        console.log(`ERROR ${error}`);
-      });
+    });
+    console.log(`Got ${commits.length} commits`);
+    return commits;
+      
   }
 
   public static normalizeTime(time:string): string {
-    // return moment(time, moment.ISO_8601).toISOString();
     return moment(time).format("YYYY-MM-DD HH:mm:ss");
-    
   }
 
   public static normalizedNow(): string {
-    // return moment(time, moment.ISO_8601).toISOString();
     return moment().format("YYYY-MM-DD HH:mm:ss");
-    
   }
 
   public async getChangesAndDeploymentsTimeline(projectId: number, query: GitlabQuery): Promise<any[]> {
-    return this
-      .loadCommits(projectId, query)
-      .then((commits: any[]) => {
-        return commits.map(c => {
-          const isMergeCommit = c.parent_ids.length > 1;
-          return {
-            eventType: "change",
-            revision: c.short_id,
-            dateTime: GitlabClient.normalizeTime(c.created_at),
-            isMergeCommit: isMergeCommit
-          };
-        });
-      }).then((changeList: any[]) => {
-        return this.loadPipelines(projectId, query).then((pipelines: any[]) => {
-          const deploymentList: any[] = pipelines.map(p => {
-            return {
-              eventType: "deployment",
-              revision: p.sha.substr(0, 8),
-              dateTime: GitlabClient.normalizeTime(p.created_at),
-              result: p.status
-            };
-          });
-          return _.chain(changeList)
-            .union(deploymentList)
-            .sortBy("dateTime")
-            .value();
-        });
-      });
+    // TODO: What if there are no environment branches?
+
+    const commits = await this.loadCommits(projectId, query);
+    const changeList = commits.map((c: any) => {
+      const isMergeCommit = c.parent_ids.length > 1;
+      return {
+        eventType: "change",
+        revision: c.short_id,
+        dateTime: GitlabClient.normalizeTime(c.created_at),
+        isMergeCommit: isMergeCommit
+      };
+    });
+    const jobs = await this.loadJobs(projectId, query);
+    const deploymentList: any[] = jobs.map((j: any) => {
+      return {
+        eventType: "deployment",
+        revision: j.sha.substr(0, 8),
+        dateTime: GitlabClient.normalizeTime(j.created_at),
+        result: j.status,
+        jobName: j.name
+      };
+    });
+    return _.chain(changeList)
+      .union(deploymentList)
+      .sortBy("dateTime")
+      .value();
   }
 
 }
