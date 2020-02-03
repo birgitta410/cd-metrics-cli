@@ -4,10 +4,18 @@ import * as _ from "lodash";
 import { BuildServerClient, BuildServerConfig } from "@/services/sources/BuildServerClient";
 
 import { Gitlab } from "gitlab";
+import moment = require('moment');
 
 export class GitlabConfig implements BuildServerConfig {
   constructor(public url: string, public defaultProjectId: number, public defaultProjectName: string) {}
 }
+
+export interface GitlabQuery {
+  since: string,
+  until: string,
+  branch: string
+}
+
 export class GitlabClient implements BuildServerClient {
   api: Gitlab;
   config: GitlabConfig;
@@ -17,19 +25,23 @@ export class GitlabClient implements BuildServerClient {
     this.config = config;
   }
 
-  public async loadPipelines(projectId: number, refName: string): Promise<any> {
-    return this.api.Pipelines.all(projectId, { refName: refName });
+  public async loadPipelines(projectId: number, query: GitlabQuery): Promise<any> {
+    return this.api.Pipelines.all(projectId, { 
+      ref: query.branch,
+      updated_after: query.since,
+      updated_before: query.until
+    });
   }
 
   public async loadCommits(
     projectId: number,
-    refName: string,
-    numCommits = 50
+    query: GitlabQuery
   ): Promise<any> {
     return this.api.Commits.all(projectId, {
-      refName: refName,
+      refName: query.branch,
       maxPages: 1,
-      perPage: numCommits
+      since: query.since,
+      until: query.until
     })
       .then((result: any) => {
         return result;
@@ -39,29 +51,47 @@ export class GitlabClient implements BuildServerClient {
       });
   }
 
-  public async listChangesAndDeployments(projectId: number, releaseBranch: string): Promise<any> {
-      this
-        .loadCommits(projectId, releaseBranch, 20)
-        .then((commits: any[]) => {
-          const lines = commits.map(c => {
-            const isMergeCommit = c.parent_ids.length > 1;
-            return `${c.short_id}\t${c.created_at}\t${isMergeCommit}`;
-          });
-          console.log(`
-  CHANGES ON MASTER
-  revision\ttime\tisMergeCommit
-  ${lines.join(`\n`)}`);
-        }).then(() => {
-          return this.loadPipelines(projectId, releaseBranch);
-        })
-        .then((pipelines: any[]) => {
-          const lines = pipelines.map(p => {
-            return `${p.sha}\t${p.created_at}\t${p.status}`;
-          });
-          console.log(`
-  DEPLOYMENTS FROM MASTER
-  revision\ttime\tstatus
-  ${lines.join(`\n`)}`);
-        });
+  public static normalizeTime(time:string): string {
+    // return moment(time, moment.ISO_8601).toISOString();
+    return moment(time).format("YYYY-MM-DD HH:mm:ss");
+    
   }
+
+  public static normalizedNow(): string {
+    // return moment(time, moment.ISO_8601).toISOString();
+    return moment().format("YYYY-MM-DD HH:mm:ss");
+    
+  }
+
+  public async getChangesAndDeploymentsTimeline(projectId: number, query: GitlabQuery): Promise<any[]> {
+    return this
+      .loadCommits(projectId, query)
+      .then((commits: any[]) => {
+        return commits.map(c => {
+          const isMergeCommit = c.parent_ids.length > 1;
+          return {
+            eventType: "change",
+            revision: c.short_id,
+            dateTime: GitlabClient.normalizeTime(c.created_at),
+            isMergeCommit: isMergeCommit
+          };
+        });
+      }).then((changeList: any[]) => {
+        return this.loadPipelines(projectId, query).then((pipelines: any[]) => {
+          const deploymentList: any[] = pipelines.map(p => {
+            return {
+              eventType: "deployment",
+              revision: p.sha.substr(0, 8),
+              dateTime: GitlabClient.normalizeTime(p.created_at),
+              result: p.status
+            };
+          });
+          return _.chain(changeList)
+            .union(deploymentList)
+            .sortBy("dateTime")
+            .value();
+        });
+      });
+  }
+
 }

@@ -1,7 +1,7 @@
 import yargs from "yargs";
+import moment = require('moment');
 import { Gitlab } from "gitlab";
-import { GitlabClient, GitlabConfig } from "./services/sources/gitlab/GitlabClient";
-import { release } from 'os';
+import { GitlabClient, GitlabConfig, GitlabQuery } from "./services/sources/gitlab/GitlabClient";
 
 yargs
   .command('$0', 'list changes and deployments', (yargs) => {
@@ -32,7 +32,21 @@ yargs
     const gitlabUrl = argv.gitlabUrl;
     const gitlabToken = argv.gitlabToken;
 
-    console.log(`Getting changes and deployments for project ${projectId} and release branch ${releaseBranch}`)
+    const gitlabQuery2020 = {
+      since: "2020-01-01T00:10:00.000+00:00",
+      until: GitlabClient.normalizedNow(),
+      branch: releaseBranch
+    };
+
+    const gitlabQuery2ndHalf2019 = {
+      since: "2019-06-01T00:10:00.000+00:00",
+      until: "2019-12-25T00:10:00.000+00:00",
+      branch: releaseBranch
+    };
+
+    const gitlabQuery = gitlabQuery2ndHalf2019;
+
+    console.log(`Getting changes and deployments for project '${projectId}' and release branch '${releaseBranch}', between ${gitlabQuery.since} and ${gitlabQuery.until}`)
 
     const api = new Gitlab({
       host: gitlabUrl,
@@ -44,7 +58,11 @@ yargs
       projectId,
       "the-project");
 
-    await new GitlabClient(api, config).listChangesAndDeployments(projectId, releaseBranch);
+    const eventsTimeLine = await new GitlabClient(api, config)
+      .getChangesAndDeploymentsTimeline(projectId, gitlabQuery);
+    eventsTimeLine.forEach(event => {
+      console.log(`${event.eventType}\t${event.revision}\t${event.dateTime}\t${event.isMergeCommit || ""}\t${event.result || ""}`);
+    });
 
   })
   .argv
