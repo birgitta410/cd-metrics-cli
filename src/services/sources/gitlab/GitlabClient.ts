@@ -1,9 +1,10 @@
 
 import * as _ from "lodash";
+import chalk from "chalk";
 
 import { BuildServerClient, BuildServerConfig } from "@/services/sources/BuildServerClient";
 
-import { Gitlab } from "gitlab";
+import { Gitlab, JobScope } from "gitlab";
 import moment = require('moment');
 
 export class GitlabConfig implements BuildServerConfig {
@@ -13,7 +14,8 @@ export class GitlabConfig implements BuildServerConfig {
 export interface GitlabQuery {
   since: string,
   until: string,
-  branch: string
+  branch: string,
+  prodDeploymentJobNames: string[]
 }
 
 export class GitlabClient implements BuildServerClient {
@@ -26,15 +28,42 @@ export class GitlabClient implements BuildServerClient {
   }
 
   public async loadJobs(projectId: number, query: GitlabQuery): Promise<any> {
-    const result = await <any[]><unknown>this.api.Pipelines.all(projectId, { 
+    const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, { 
       ref: query.branch,
       updated_after: query.since,
       updated_before: query.until
     });
     
-    console.log(`Got ${result.length} pipeline runs`);
-    return result;
-  }
+    console.log(`Got ${pipelines.length} pipeline runs`);
+
+    const filterForJobNames = query.prodDeploymentJobNames;
+    const pipelineJobs = await Promise.all(
+      pipelines.map(async (p: any) => {
+        const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(projectId, p.id);
+
+        const onlyDeploymentJobs = _.filter(jobs, (j: any) => {
+          return filterForJobNames.includes(j.name);
+        });
+        if(onlyDeploymentJobs.length > 1) {
+          const prioritisedJob: any = onlyDeploymentJobs.find(j => {
+            return j.name === filterForJobNames[0];
+          }) || onlyDeploymentJobs[0];
+          console.log(`${chalk.yellow("WARNING")} Found ${onlyDeploymentJobs.length} deployment jobs for pipeline ${p.id}, choosing the one named '${prioritisedJob.name}'`);
+          return prioritisedJob;
+        } else if (onlyDeploymentJobs.length === 0) {
+          console.log(`${chalk.red("ERROR")} Found no deployment jobs for pipeline ${p.id} among jobs named ${jobs.map((j: any) => j.name)}`);
+          return [];
+        } else {
+          return onlyDeploymentJobs;
+        }
+        
+      })
+    );
+    
+    const allJobs = _.flatten(pipelineJobs);
+    console.log(`Got and filtered ${allJobs.length} jobs`);
+    return allJobs;
+  };
 
   public async loadCommits(
     projectId: number,
@@ -76,7 +105,7 @@ export class GitlabClient implements BuildServerClient {
     const deploymentList: any[] = jobs.map((j: any) => {
       return {
         eventType: "deployment",
-        revision: j.sha.substr(0, 8),
+        revision: j.commit.short_id,
         dateTime: GitlabClient.normalizeTime(j.created_at),
         result: j.status,
         jobName: j.name
