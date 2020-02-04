@@ -73,7 +73,8 @@ export class GitlabClient implements BuildServerClient {
     const commits = await <any[]><unknown>this.api.Commits.all(projectId, {
       refName: query.branch,
       since: query.since,
-      until: query.until
+      until: query.until,
+      all: true
     });
     console.log(`Got ${commits.length} commits`);
     return commits;
