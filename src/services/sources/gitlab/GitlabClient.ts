@@ -84,9 +84,8 @@ export class GitlabClient implements BuildServerClient {
       })
     );
     
-    const allJobs = _.flatten(pipelineJobs);
-    console.log(`Got and filtered ${allJobs.length} jobs`);
-    return allJobs;
+    console.log(`Got and filtered ${pipelineJobs.length} jobs`);
+    return pipelineJobs;
   };
 
   public async loadCommits(
