@@ -188,6 +188,30 @@ describe("GitlabClient", () => {
       
 
     });
+
+    test.only("should not crash if no deployment jobs can be found", async () => {
+      const nonDeploymentJob: any = someJob();
+      nonDeploymentJob.name = "some-job";
+      pipelinesApiMock.all.mockResolvedValue([
+        somePipeline()
+      ]);
+      pipelinesApiMock.showJobs.mockResolvedValue([
+        nonDeploymentJob
+      ]);
+      commitsApiMock.all.mockResolvedValue([
+        someCommit()
+      ]);
+
+      const events = await createApi().getChangesAndDeploymentsTimeline(1111, {
+        since: moment(),
+        until: moment(),
+        branch: "master",
+        prodDeploymentJobNames: ["deployment-job"]
+      });
+
+      expect(events.length).toBe(1);
+
+    });
   });
 });
 

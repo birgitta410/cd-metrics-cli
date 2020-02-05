@@ -27,7 +27,7 @@ export class GitlabClient implements BuildServerClient {
     this.config = config;
   }
 
-  private findMostRecentJobRun(jobCandidates: any[], jobName:string): any {
+  private findMostRecentJobRun(jobCandidates: any[], jobName:string): any | undefined {
     const jobsWithName: any = jobCandidates.filter(j => {
       return j.name === jobName;
     });
@@ -39,16 +39,16 @@ export class GitlabClient implements BuildServerClient {
     return undefined;
   }
 
-  public findProdDeploymentJob(allJobs: any[], pipelineId: string, prodDeploymentJobNameCandidates: string[]) : any {
+  public findProdDeploymentJob(allJobs: any[], pipelineId: string, prodDeploymentJobNameCandidates: string[]) : any | undefined {
     const deploymentCandidates = _.filter(allJobs, (j: any) => {
       return prodDeploymentJobNameCandidates.includes(j.name);
     });
     if(deploymentCandidates.length === 1) {
       return deploymentCandidates[0];
     } else if(deploymentCandidates.length > 1) {
-      const prioritisedByNameAndTime = prodDeploymentJobNameCandidates.map(jobName => {
+      const prioritisedByNameAndTime = _.compact(prodDeploymentJobNameCandidates.map(jobName => {
         return this.findMostRecentJobRun(deploymentCandidates, jobName);
-      });
+      }));
       const selectedJob = prioritisedByNameAndTime.length > 0 ? prioritisedByNameAndTime[0] : undefined;
       if(selectedJob) {
         console.log(`${chalk.yellow("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
@@ -77,15 +77,16 @@ export class GitlabClient implements BuildServerClient {
     console.log(`Got ${pipelines.length} pipeline runs`);
 
     const filterForJobNames = query.prodDeploymentJobNames;
-    const pipelineJobs = await Promise.all(
+    const jobsForPipelinesInBranch = await Promise.all(
       pipelines.map(async (p: any) => {
         const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(projectId, p.id);
         return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
       })
     );
     
-    console.log(`Got and filtered ${pipelineJobs.length} jobs`);
-    return pipelineJobs;
+    const compactedJobs = _.compact(jobsForPipelinesInBranch);
+    console.log(`Got and filtered ${compactedJobs.length} jobs`);
+    return compactedJobs;
   };
 
   public async loadCommits(
