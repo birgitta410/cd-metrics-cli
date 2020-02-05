@@ -27,13 +27,51 @@ export class GitlabClient implements BuildServerClient {
     this.config = config;
   }
 
+  private findMostRecentJobRun(jobCandidates: any[], jobName:string): any {
+    const jobsWithName: any = jobCandidates.filter(j => {
+      return j.name === jobName;
+    });
+    if(jobsWithName.length === 1) {
+      return jobsWithName[0];
+    } else if (jobsWithName.length > 1) {
+      return _.orderBy(jobsWithName, "created_at", "desc")[0];
+    }
+    return undefined;
+  }
+
+  public findProdDeploymentJob(allJobs: any[], pipelineId: string, prodDeploymentJobNameCandidates: string[]) : any {
+    const deploymentCandidates = _.filter(allJobs, (j: any) => {
+      return prodDeploymentJobNameCandidates.includes(j.name);
+    });
+    if(deploymentCandidates.length === 1) {
+      return deploymentCandidates[0];
+    } else if(deploymentCandidates.length > 1) {
+      const prioritisedByNameAndTime = prodDeploymentJobNameCandidates.map(jobName => {
+        return this.findMostRecentJobRun(deploymentCandidates, jobName);
+      });
+      const selectedJob = prioritisedByNameAndTime.length > 0 ? prioritisedByNameAndTime[0] : undefined;
+      if(selectedJob) {
+        console.log(`${chalk.yellow("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
+          + `choosing '${selectedJob.name}' run at ${selectedJob.created_at}`);
+      } else {
+        console.log(`${chalk.red("ERROR")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
+          + `could not determine which one to choose`);
+      }
+      
+      return selectedJob;
+
+    } else {
+      console.log(`${chalk.red("ERROR")} Found no deployment jobs for pipeline ${pipelineId} among jobs named ${allJobs.map((j: any) => j.name)}`);
+      return undefined;
+    }
+  }
+
   public async loadJobs(projectId: number, query: GitlabQuery): Promise<any> {
     const queryParams = { 
       ref: query.branch,
       updated_after: GitlabClient.gitlabDateString(query.since),
       updated_before: GitlabClient.gitlabDateString(query.until)
     };
-    console.log(`query: ${JSON.stringify(queryParams)}`);
     const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, queryParams);
     
     console.log(`Got ${pipelines.length} pipeline runs`);
@@ -42,23 +80,7 @@ export class GitlabClient implements BuildServerClient {
     const pipelineJobs = await Promise.all(
       pipelines.map(async (p: any) => {
         const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(projectId, p.id);
-
-        const onlyDeploymentJobs = _.filter(jobs, (j: any) => {
-          return filterForJobNames.includes(j.name);
-        });
-        if(onlyDeploymentJobs.length > 1) {
-          const prioritisedJob: any = onlyDeploymentJobs.find(j => {
-            return j.name === filterForJobNames[0];
-          }) || onlyDeploymentJobs[0];
-          console.log(`${chalk.yellow("WARNING")} Found ${onlyDeploymentJobs.length} deployment jobs for pipeline ${p.id}, choosing the one named '${prioritisedJob.name}'`);
-          return prioritisedJob;
-        } else if (onlyDeploymentJobs.length === 0) {
-          console.log(`${chalk.red("ERROR")} Found no deployment jobs for pipeline ${p.id} among jobs named ${jobs.map((j: any) => j.name)}`);
-          return [];
-        } else {
-          return onlyDeploymentJobs;
-        }
-        
+        return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
       })
     );
     

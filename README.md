@@ -14,9 +14,3 @@ npm install
 ```
 npm run test:unit
 ```
-
-### Run integration tests, with a real server
-```
-GITLAB_URL=theurl GITLAB_TOKEN=thetoken npm run test:integration
-```
-

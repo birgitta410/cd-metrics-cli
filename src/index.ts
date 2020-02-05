@@ -71,7 +71,7 @@ yargs
         alias: "j",
         type: "array",
         demand: true,
-        description: "List of names of jobs that deploy to production, space-separated (firstname secondname thirdname)"
+        description: "List of names of jobs that deploy to production, space-separated (firstname secondname thirdname). Will be prioritised in order."
       })
       .option("since", {
         alias: "s",
