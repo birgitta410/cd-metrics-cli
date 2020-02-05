@@ -12,8 +12,8 @@ export class GitlabConfig implements BuildServerConfig {
 }
 
 export interface GitlabQuery {
-  since: string,
-  until: string,
+  since: moment.Moment,
+  until: moment.Moment,
   branch: string,
   prodDeploymentJobNames: string[]
 }
@@ -28,11 +28,13 @@ export class GitlabClient implements BuildServerClient {
   }
 
   public async loadJobs(projectId: number, query: GitlabQuery): Promise<any> {
-    const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, { 
+    const queryParams = { 
       ref: query.branch,
-      updated_after: query.since,
-      updated_before: query.until
-    });
+      updated_after: GitlabClient.gitlabDateString(query.since),
+      updated_before: GitlabClient.gitlabDateString(query.until)
+    };
+    console.log(`query: ${JSON.stringify(queryParams)}`);
+    const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, queryParams);
     
     console.log(`Got ${pipelines.length} pipeline runs`);
 
@@ -72,8 +74,8 @@ export class GitlabClient implements BuildServerClient {
 
     const commits = await <any[]><unknown>this.api.Commits.all(projectId, {
       refName: query.branch,
-      since: query.since,
-      until: query.until,
+      since: GitlabClient.gitlabDateString(query.since),
+      until: GitlabClient.gitlabDateString(query.until),
       all: true
     });
     console.log(`Got ${commits.length} commits`);
@@ -88,6 +90,11 @@ export class GitlabClient implements BuildServerClient {
   public static normalizedNow(): string {
     return moment().format("YYYY-MM-DD HH:mm:ss");
   }
+
+  public static gitlabDateString(date: moment.Moment): string {
+    return date.format("YYYY-MM-DDT00:00:00.000+00:00");
+  }
+  
 
   public async getChangesAndDeploymentsTimeline(projectId: number, query: GitlabQuery): Promise<any[]> {
     // TODO: What if there are no environment branches?

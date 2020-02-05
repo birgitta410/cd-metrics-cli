@@ -4,28 +4,25 @@ import chalk = require("chalk");
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./services/sources/gitlab/GitlabClient";
 
-const listChangesAndDeployments = async (projectId:number, releaseBranch:string, gitlabUrl:string, gitlabToken:string) => {
-  const gitlabQuery2020 = {
-    since: "2020-01-01T00:10:00.000+00:00",
-    until: GitlabClient.normalizedNow(),
+const listChangesAndDeployments = async (projectId:number, 
+  releaseBranch:string,
+  gitlabUrl:string,
+  gitlabToken:string,
+  deploymentJobs:string[],
+  since: moment.Moment,
+  until: moment.Moment) => {
+  
+  const gitlabQuery = {
+    since: moment(since),
+    until: moment(until),
     branch: releaseBranch,
-    prodDeploymentJobNames: ["deploy_prod_sharenow", "install_build_deploy_static"]
+    prodDeploymentJobNames: deploymentJobs
   };
-
-  // pickle-rick branch rename to master: October
-  const gitlabQuery2ndHalf2019 = {
-    since: "2019-10-07T00:10:00.000+00:00",
-    until: "2019-12-25T00:10:00.000+00:00",
-    branch: releaseBranch,
-    prodDeploymentJobNames: ["deploy_prod_sharenow", "install_build_deploy_static"]
-  };
-
-  const gitlabQuery = gitlabQuery2ndHalf2019;
 
   console.log(`Getting changes and deployments for project ${chalk.blueBright(projectId)},
 focusing on changes and pipelines on branch ${chalk.blueBright(releaseBranch)},
-considering jobs named ${chalk.blueBright(gitlabQuery.prodDeploymentJobNames)} as production deployments.
-Timeline ${chalk.blueBright(gitlabQuery.since)} - ${chalk.blueBright(gitlabQuery.until)}`);
+considering jobs named ${chalk.blueBright(JSON.stringify(gitlabQuery.prodDeploymentJobNames))} as production deployments.
+Timeline ${chalk.blueBright(GitlabClient.gitlabDateString(gitlabQuery.since))} - ${chalk.blueBright(GitlabClient.gitlabDateString(gitlabQuery.until))}`);
 
   const eventsTimeLine = await createGitlabClient(projectId, gitlabUrl, gitlabToken)
     .getChangesAndDeploymentsTimeline(projectId, gitlabQuery);
@@ -70,9 +67,35 @@ yargs
         demand: true,
         description: "Gitlab API token"
       })
+      .option("deploymentJobs", {
+        alias: "j",
+        type: "array",
+        demand: true,
+        description: "List of names of jobs that deploy to production, space-separated (firstname secondname thirdname)"
+      })
+      .option("since", {
+        alias: "s",
+        type: "string",
+        demand: true,
+        description: "Time frame: data since which date? YYYY-MM-HH"
+      })
+      .option("until", {
+        alias: "u",
+        type: "string",
+        default: "today",
+        description: "Time frame: data until which date? YYYY-MM-HH"
+      })
   }, async (argv: any) => {
 
-    await listChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.gitlabUrl, argv.gitlabToken);
+    const since = moment(argv.since);
+    const until = argv.until === "today" ? moment() : moment(argv.until);
+    await listChangesAndDeployments(argv.projectId, 
+      argv.releaseBranch, 
+      argv.gitlabUrl, 
+      argv.gitlabToken, 
+      argv.deploymentJobs, 
+      since, 
+      until);
     
   })
   .argv
