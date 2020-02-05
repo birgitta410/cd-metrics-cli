@@ -2,12 +2,12 @@
 import * as _ from "lodash";
 import chalk from "chalk";
 
-import { BuildServerClient, BuildServerConfig } from "@/services/sources/BuildServerClient";
-
 import { Gitlab } from "gitlab";
 import moment = require('moment');
 
-export class GitlabConfig implements BuildServerConfig {
+import { RequestHelper } from "./RequestHelper";
+
+export class GitlabConfig {
   constructor(public url: string, public defaultProjectId: number, public defaultProjectName: string) {}
 }
 
@@ -18,7 +18,7 @@ export interface GitlabQuery {
   prodDeploymentJobNames: string[]
 }
 
-export class GitlabClient implements BuildServerClient {
+export class GitlabClient {
   api: Gitlab;
   config: GitlabConfig;
 
@@ -77,12 +77,11 @@ export class GitlabClient implements BuildServerClient {
     console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on ${chalk.cyanBright(queryParams.ref)}`);
 
     const filterForJobNames = query.prodDeploymentJobNames;
-    const jobsForPipelinesInBranch = await Promise.all(
-      pipelines.map(async (p: any) => {
-        const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(projectId, p.id);
-        return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
-      })
-    );
+
+    const jobsForPipelinesInBranch = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
+      const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(projectId, p.id);
+      return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
+    });
     
     const compactedJobs = _.compact(jobsForPipelinesInBranch);
     console.log(`Got and filtered ${chalk.cyanBright(compactedJobs.length)} jobs`);
@@ -153,7 +152,7 @@ export class GitlabClient implements BuildServerClient {
         isMergeCommit: isMergeCommit
       };
     });
-    console.log(`${chalk.cyanBright(`>> Determined ${changeList.length} change events`)}`);
+    console.log(`${chalk.cyanBright(`>> Determined ${changeList.length} change events\n`)}`);
 
     const jobs = await this.loadJobs(projectId, query);
     const deploymentList: any[] = jobs.map((j: any) => {
@@ -165,7 +164,7 @@ export class GitlabClient implements BuildServerClient {
         jobName: j.name
       };
     });
-    console.log(`${chalk.cyanBright(`>> Determined ${deploymentList.length} production deployment events`)}`);
+    console.log(`${chalk.cyanBright(`>> Determined ${deploymentList.length} production deployment events\n`)}`);
 
     return _.chain(changeList)
       .union(deploymentList)

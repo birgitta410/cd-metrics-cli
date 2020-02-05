@@ -4,7 +4,7 @@ import chalk = require("chalk");
 import moment = require("moment");
 
 import { Gitlab } from "gitlab";
-import { GitlabClient, GitlabConfig } from "./services/sources/gitlab/GitlabClient";
+import { GitlabClient, GitlabConfig } from "./GitlabClient";
 
 const listChangesAndDeployments = async (projectId:number, 
   releaseBranch:string,

@@ -1,5 +1,5 @@
 import { Gitlab, Pipelines, Commits, Branches } from "gitlab";
-import { GitlabClient, GitlabConfig } from "../../../../src/services/sources/gitlab/GitlabClient";
+import { GitlabClient, GitlabConfig } from "../../src/GitlabClient";
 import moment = require('moment');
 
 jest.mock("gitlab");
