@@ -131,6 +131,8 @@ export class GitlabClient implements BuildServerClient {
         isMergeCommit: isMergeCommit
       };
     });
+    console.log(`${chalk.blueBright(`>> Found ${changeList.length} change events`)}`);
+
     const jobs = await this.loadJobs(projectId, query);
     const deploymentList: any[] = jobs.map((j: any) => {
       return {
@@ -141,6 +143,8 @@ export class GitlabClient implements BuildServerClient {
         jobName: j.name
       };
     });
+    console.log(`${chalk.blueBright(`>> Found ${deploymentList.length} production deployment events`)}`);
+
     return _.chain(changeList)
       .union(deploymentList)
       .sortBy("dateTime")
