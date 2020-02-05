@@ -74,7 +74,7 @@ export class GitlabClient implements BuildServerClient {
     };
     const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, queryParams);
     
-    console.log(`Got ${pipelines.length} pipeline runs`);
+    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on ${chalk.cyanBright(queryParams.ref)}`);
 
     const filterForJobNames = query.prodDeploymentJobNames;
     const jobsForPipelinesInBranch = await Promise.all(
@@ -85,7 +85,7 @@ export class GitlabClient implements BuildServerClient {
     );
     
     const compactedJobs = _.compact(jobsForPipelinesInBranch);
-    console.log(`Got and filtered ${compactedJobs.length} jobs`);
+    console.log(`Got and filtered ${chalk.cyanBright(compactedJobs.length)} jobs`);
     return compactedJobs;
   };
 
@@ -100,7 +100,7 @@ export class GitlabClient implements BuildServerClient {
       until: GitlabClient.gitlabDateString(query.until),
       all: true
     });
-    console.log(`Got ${commits.length} commits`);
+    console.log(`Got ${chalk.cyanBright(commits.length)} commits`);
     return commits;
       
   }
@@ -119,8 +119,7 @@ export class GitlabClient implements BuildServerClient {
   
 
   public async getChangesAndDeploymentsTimeline(projectId: number, query: GitlabQuery): Promise<any[]> {
-    // TODO: What if there are no environment branches?
-
+    
     const commits = await this.loadCommits(projectId, query);
     const changeList = commits.map((c: any) => {
       const isMergeCommit = c.parent_ids.length > 1;
@@ -131,7 +130,7 @@ export class GitlabClient implements BuildServerClient {
         isMergeCommit: isMergeCommit
       };
     });
-    console.log(`${chalk.blueBright(`>> Found ${changeList.length} change events`)}`);
+    console.log(`${chalk.cyanBright(`>> Determined ${changeList.length} change events`)}`);
 
     const jobs = await this.loadJobs(projectId, query);
     const deploymentList: any[] = jobs.map((j: any) => {
@@ -143,7 +142,7 @@ export class GitlabClient implements BuildServerClient {
         jobName: j.name
       };
     });
-    console.log(`${chalk.blueBright(`>> Found ${deploymentList.length} production deployment events`)}`);
+    console.log(`${chalk.cyanBright(`>> Determined ${deploymentList.length} production deployment events`)}`);
 
     return _.chain(changeList)
       .union(deploymentList)

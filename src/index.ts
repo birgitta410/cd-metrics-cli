@@ -1,6 +1,8 @@
 import yargs from "yargs";
-import moment = require("moment");
+import prompts = require('prompts');
 import chalk = require("chalk");
+import moment = require("moment");
+
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./services/sources/gitlab/GitlabClient";
 
@@ -19,16 +21,27 @@ const listChangesAndDeployments = async (projectId:number,
     prodDeploymentJobNames: deploymentJobs
   };
 
-  console.log(`Getting changes and deployments for project ${chalk.blueBright(projectId)},
-focusing on changes and pipelines on branch ${chalk.blueBright(releaseBranch)},
-considering jobs named ${chalk.blueBright(JSON.stringify(gitlabQuery.prodDeploymentJobNames))} as production deployments.
-Timeline ${chalk.blueBright(GitlabClient.gitlabDateString(gitlabQuery.since))} - ${chalk.blueBright(GitlabClient.gitlabDateString(gitlabQuery.until))}`);
+  console.log(`Getting changes and deployments for project ${chalk.cyanBright(projectId)},
+focusing on changes and pipelines on branch ${chalk.cyanBright(releaseBranch)},
+considering jobs named ${chalk.cyanBright(JSON.stringify(gitlabQuery.prodDeploymentJobNames))} as production deployments.
+Timeline ${chalk.cyanBright(GitlabClient.gitlabDateString(gitlabQuery.since))} - ${chalk.cyanBright(GitlabClient.gitlabDateString(gitlabQuery.until))}
+`);
 
   const eventsTimeLine = await createGitlabClient(projectId, gitlabUrl, gitlabToken)
     .getChangesAndDeploymentsTimeline(projectId, gitlabQuery);
-  eventsTimeLine.forEach(event => {
-    console.log(`${event.eventType}\t${event.revision}\t${event.dateTime}\t${event.isMergeCommit || ""}\t${event.result || ""}`);
+
+  const listEventsUserPrompt = await prompts({
+    type: "confirm",
+    name: "value",
+    message: "Print events?",
+    initial: true
   });
+  
+  if(listEventsUserPrompt.value === true) {
+    eventsTimeLine.forEach(event => {
+      console.log(`${event.eventType}\t${event.revision}\t${event.dateTime}\t${event.isMergeCommit || ""}\t${event.result || ""}`);
+    });
+  }
 }
 
 const createGitlabClient = (projectId: number, host:string, token:string) => {
