@@ -60,12 +60,12 @@ yargs
         description: "Name of the branch that releases to production"
       })
       .option("gitlabUrl", {
-        description: "Base url of the Gitlab instance",
-        demand: true
+        description: "Base url of the Gitlab instance; falls back on GITLAB_URL env var if empty",
+        type: "string"
       })
       .option("gitlabToken", {
-        demand: true,
-        description: "Gitlab API token"
+        description: "Gitlab API token; falls back on GITLAB_TOKEN env var if empty",
+        type: "string"
       })
       .option("deploymentJobs", {
         alias: "j",
@@ -87,12 +87,15 @@ yargs
       })
   }, async (argv: any) => {
 
+    const gitlabUrl = argv.gitlabUrl || process.env.GITLAB_URL;
+    const gitlabToken = argv.gitlabToken || process.env.GITLAB_TOKEN;
+
     const since = moment(argv.since);
     const until = argv.until === "today" ? moment() : moment(argv.until);
     await listChangesAndDeployments(argv.projectId, 
       argv.releaseBranch, 
-      argv.gitlabUrl, 
-      argv.gitlabToken, 
+      gitlabUrl,
+      gitlabToken, 
       argv.deploymentJobs, 
       since, 
       until);
