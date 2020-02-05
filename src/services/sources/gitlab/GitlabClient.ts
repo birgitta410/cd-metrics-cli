@@ -4,7 +4,7 @@ import chalk from "chalk";
 
 import { BuildServerClient, BuildServerConfig } from "@/services/sources/BuildServerClient";
 
-import { Gitlab, JobScope } from "gitlab";
+import { Gitlab } from "gitlab";
 import moment = require('moment');
 
 export class GitlabConfig implements BuildServerConfig {
@@ -89,18 +89,41 @@ export class GitlabClient implements BuildServerClient {
     return compactedJobs;
   };
 
+  public async getBranches(
+    projectId: number,
+    branchSearchPattern: string
+  ): Promise<any[]> {
+    const branches = await <any[]><unknown>this.api.Branches.all(projectId, {
+      search: branchSearchPattern
+    });
+    return branches.map(b => b.name);
+  }
+
   public async loadCommits(
     projectId: number,
     query: GitlabQuery
   ): Promise<any> {
 
-    const commits = await <any[]><unknown>this.api.Commits.all(projectId, {
-      refName: query.branch,
-      since: GitlabClient.gitlabDateString(query.since),
-      until: GitlabClient.gitlabDateString(query.until),
-      all: true
-    });
-    console.log(`Got ${chalk.cyanBright(commits.length)} commits`);
+    const targetBranchPattern = query.branch;
+    let targetBranches = [query.branch];
+    if(targetBranchPattern.startsWith("^")) {
+      targetBranches = await this.getBranches(projectId, targetBranchPattern);
+    }
+
+    const commitsPerBranch = await Promise.all(targetBranches.map(async  (branchName) => {
+      return <any[]><unknown>this.api.Commits.all(projectId, {
+        refName: branchName,
+        since: GitlabClient.gitlabDateString(query.since),
+        until: GitlabClient.gitlabDateString(query.until),
+        all: true
+      });
+    }));
+    
+    const commits = _.chain(commitsPerBranch)
+      .flatten()
+      .uniqBy("short_id")
+      .value();
+    console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es) ${chalk.cyanBright(targetBranches)}`);
     return commits;
       
   }

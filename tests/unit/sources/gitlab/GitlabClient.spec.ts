@@ -1,4 +1,4 @@
-import { Gitlab, Pipelines, Commits } from "gitlab";
+import { Gitlab, Pipelines, Commits, Branches } from "gitlab";
 import { GitlabClient, GitlabConfig } from "../../../../src/services/sources/gitlab/GitlabClient";
 import moment = require('moment');
 
@@ -8,11 +8,13 @@ describe("GitlabClient", () => {
   let apiMock: Gitlab;
   let pipelinesApiMock: any = {};
   let commitsApiMock: any = {};
+  let branchesApiMock: any = {};
 
   function resetMocks() {
     apiMock = new Gitlab();
     apiMock.Pipelines = new Pipelines();
     apiMock.Commits = new Commits();
+    apiMock.Branches = new Branches();
 
     pipelinesApiMock = {
       all: jest.fn(),
@@ -25,6 +27,11 @@ describe("GitlabClient", () => {
       all: jest.fn()
     };
     apiMock.Commits.all = commitsApiMock.all;
+
+    branchesApiMock = {
+      all: jest.fn()
+    };
+    apiMock.Branches.all = branchesApiMock.all;
   }
 
   beforeEach(() => {
@@ -76,6 +83,19 @@ describe("GitlabClient", () => {
     };
   }
 
+  function someBranch() : any {
+    return {
+      "name": "release/7.41.0",
+      "commit": {
+          "id": "55cb3e2c2328213003657ba46f65cb0538c50e71",
+          "short_id": "55cb3e2c",
+          "created_at": "2019-12-09T15:10:00.000+00:00",
+          "title": "Some commit message",
+          "author_name": "Some Author",
+      }
+    };
+  }
+
   describe("loadJobs", () => {
     test("should ask for pipelines on branch and load their respective deployment jobs", async () => {
       const deploymentJob: any = someJob();
@@ -97,6 +117,55 @@ describe("GitlabClient", () => {
       });
 
       expect(actualDeploymentJobs.length).toBe(2);
+
+    });
+  });
+
+  describe("loadCommits", () => {
+    test("should get all commits for the specified branch", async () => {
+      const commit = someCommit();
+      commitsApiMock.all.mockResolvedValue([
+        commit
+      ]);
+
+      const actualCommits = await createApi().loadCommits(1111, {
+        since: moment(),
+        until: moment(),
+        branch: "master",
+        prodDeploymentJobNames: ["does-not-matter"]
+      });
+
+      expect(actualCommits.length).toBe(1);
+      expect(actualCommits[0].short_id).toBe(commit.short_id);
+
+    });
+
+    test("should get unique commits for multiple branches if branch name is pattern", async () => {
+      const commit1 = someCommit();
+      commit1.short_id = "654321"
+      const commit2 = someCommit();
+      commit2.short_id = "123456"
+      
+      commitsApiMock.all
+        .mockImplementationOnce(() => Promise.resolve([commit1, commit2]))
+        .mockImplementationOnce(() => Promise.resolve([commit2]));
+
+      const branch1 = someBranch();
+      branch1.name = "release/1.2"
+      const branch2 = someBranch();
+      branch2.name = "release/1.3"
+      branchesApiMock.all.mockResolvedValue([
+        branch1, branch2
+      ]);
+
+      const actualCommits = await createApi().loadCommits(1111, {
+        since: moment(),
+        until: moment(),
+        branch: "^release",
+        prodDeploymentJobNames: ["does-not-matter"]
+      });
+
+      expect(actualCommits.length).toBe(2);
 
     });
   });
