@@ -42,6 +42,7 @@ describe("GitlabClient", () => {
       "name": "some_job_name",
       "ref": "master",
       "created_at": "2019-11-08T17:12:24.655Z",
+      "finished_at": "2019-11-08T17:15:54.672Z",
       "commit": {
         "id": "35aed3b9ad09a19243dcc2ed4ad3f6014d081580",
         "short_id": "35aed3b9",
@@ -176,20 +177,20 @@ describe("GitlabClient", () => {
       const changes = events.filter(e => e.eventType === "change");
       expect(changes.length).toBe(1);
       expect(changes[0].revision).toBe(commit.short_id);
-      expect(moment(changes[0].dateTime).unix).toBe(moment(commit.created_at).unix);
+      expect(moment(changes[0].dateTime).valueOf()).toBe(moment(commit.created_at).valueOf());
       expect(changes[0].isMergeCommit).toBe(false);
       
       const deployments = events.filter(e => e.eventType === "deployment");
       expect(deployments.length).toBe(1);
       expect(deployments[0].revision).toBe(deploymentJob.commit.short_id);
-      expect(moment(deployments[0].dateTime).unix).toBe(moment(deploymentJob.created_at).unix);
+      expect(GitlabClient.normalizeTime(deployments[0].dateTime)).toBe(GitlabClient.normalizeTime(deploymentJob.finished_at));
       expect(deployments[0].result).toBe(deploymentJob.status);
       expect(deployments[0].jobName).toBe(deploymentJob.name);
       
 
     });
 
-    test.only("should not crash if no deployment jobs can be found", async () => {
+    test("should not crash if no deployment jobs can be found", async () => {
       const nonDeploymentJob: any = someJob();
       nonDeploymentJob.name = "some-job";
       pipelinesApiMock.all.mockResolvedValue([

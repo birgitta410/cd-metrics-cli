@@ -137,7 +137,7 @@ export class GitlabClient implements BuildServerClient {
       return {
         eventType: "deployment",
         revision: j.commit.short_id,
-        dateTime: GitlabClient.normalizeTime(j.created_at),
+        dateTime: GitlabClient.normalizeTime(j.finished_at),
         result: j.status,
         jobName: j.name
       };
