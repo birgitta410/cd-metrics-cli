@@ -41,7 +41,14 @@ describe("GitlabClient", () => {
       "status": "success",
       "name": "some_job_name",
       "ref": "master",
-      "created_at": "2019-11-08T17:12:24.655Z"
+      "created_at": "2019-11-08T17:12:24.655Z",
+      "commit": {
+        "id": "35aed3b9ad09a19243dcc2ed4ad3f6014d081580",
+        "short_id": "35aed3b9",
+        "created_at": "2020-11-08T12:48:17.000+00:00",
+        "title": "Some commit message",
+        "author_name": "Some Author"
+      }
     };
   }
 
@@ -52,6 +59,19 @@ describe("GitlabClient", () => {
       "ref": "master",
       "status": "success",
       "created_at": "2020-02-05T12:48:19.024Z"
+    };
+  }
+
+  function someCommit() : any {
+    return {
+      "id": "4b4e5264edeeb45d1c4f7b45e879258fdd5d5781",
+      "short_id": "4b4e5264",
+      "created_at": "2020-01-10T17:01:21.000+01:00",
+      "parent_ids": [
+          "231fe1c855b8d86b4822842a5ca7981000ac1ccc"
+      ],
+      "title": "some short commit message",
+      "author_name": "Some Author"
     };
   }
 
@@ -92,7 +112,6 @@ describe("GitlabClient", () => {
       const filteredJob = createApi()
           .findProdDeploymentJob(jobs, "123455", ["name2"]);
         
-      console.log(`filtered ${JSON.stringify(filteredJob)}`)
       expect(filteredJob.name).toBe("name2");
 
     });
@@ -108,7 +127,6 @@ describe("GitlabClient", () => {
       const filteredJob = createApi()
           .findProdDeploymentJob(jobs, "123455", ["name1", "name2"]);
         
-      console.log(`filtered ${JSON.stringify(filteredJob)}`)
       expect(filteredJob.name).toBe("name1");
 
     });
@@ -126,13 +144,51 @@ describe("GitlabClient", () => {
       const filteredJob = createApi()
           .findProdDeploymentJob(jobs, "123455", ["job-name"]);
         
-      console.log(`filtered ${JSON.stringify(filteredJob)}`)
       expect(filteredJob.created_at).toBe(laterJobRun.created_at);
 
     });
   });
 
-  
+  describe("getChangesAndDeploymentsTimeline", () => {
+    test("should return a timeline of changes and deployments", async () => {
+      const deploymentJob: any = someJob();
+      deploymentJob.name = "some-deployment-job";
+      const commit: any = someCommit();
+      pipelinesApiMock.all.mockResolvedValue([
+        somePipeline()
+      ]);
+      pipelinesApiMock.showJobs.mockResolvedValue([
+        deploymentJob
+      ]);
+      commitsApiMock.all.mockResolvedValue([
+        commit
+      ]);
+
+      const events = await createApi().getChangesAndDeploymentsTimeline(1111, {
+        since: moment(),
+        until: moment(),
+        branch: "master",
+        prodDeploymentJobNames: [deploymentJob.name]
+      });
+
+      expect(events.length).toBe(2);
+      
+      const changes = events.filter(e => e.eventType === "change");
+      expect(changes.length).toBe(1);
+      expect(changes[0].revision).toBe(commit.short_id);
+      expect(moment(changes[0].dateTime).unix).toBe(moment(commit.created_at).unix);
+      expect(changes[0].isMergeCommit).toBe(false);
+      
+      const deployments = events.filter(e => e.eventType === "deployment");
+      expect(deployments.length).toBe(1);
+      expect(deployments[0].revision).toBe(deploymentJob.commit.short_id);
+      expect(moment(deployments[0].dateTime).unix).toBe(moment(deploymentJob.created_at).unix);
+      expect(deployments[0].result).toBe(deploymentJob.status);
+      expect(deployments[0].jobName).toBe(deploymentJob.name);
+      
+
+    });
+  });
 });
 
 
