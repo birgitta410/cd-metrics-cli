@@ -29,7 +29,7 @@ export class GitlabClient {
 
   private findMostRecentJobRun(jobCandidates: any[], jobName:string): any | undefined {
     const jobsWithName: any = jobCandidates.filter(j => {
-      return j.name === jobName;
+      return j.name === jobName && j.finished_at;
     });
     if(jobsWithName.length === 1) {
       return jobsWithName[0];
@@ -40,11 +40,12 @@ export class GitlabClient {
   }
 
   public findProdDeploymentJob(allJobs: any[], pipelineId: string, prodDeploymentJobNameCandidates: string[]) : any | undefined {
+    
     const deploymentCandidates = _.filter(allJobs, (j: any) => {
       return prodDeploymentJobNameCandidates.includes(j.name);
     });
     if(deploymentCandidates.length === 1) {
-      return deploymentCandidates[0];
+      return deploymentCandidates[0].finished_at ? deploymentCandidates[0] : undefined;
     } else if(deploymentCandidates.length > 1) {
       const prioritisedByNameAndTime = _.compact(prodDeploymentJobNameCandidates.map(jobName => {
         return this.findMostRecentJobRun(deploymentCandidates, jobName);
@@ -54,14 +55,14 @@ export class GitlabClient {
         console.log(`${chalk.yellow("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
           + `choosing '${selectedJob.name}' run at ${selectedJob.created_at}`);
       } else {
-        console.log(`${chalk.red("ERROR")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
+        console.log(`${chalk.red("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
           + `could not determine which one to choose`);
       }
       
       return selectedJob;
 
     } else {
-      console.log(`${chalk.red("ERROR")} Found no deployment jobs for pipeline ${pipelineId} among jobs named ${allJobs.map((j: any) => j.name)}`);
+      console.log(`${chalk.red("WARNING")} Found no deployment jobs for pipeline ${pipelineId} among jobs named ${allJobs.map((j: any) => j.name)}`);
       return undefined;
     }
   }
@@ -161,7 +162,8 @@ export class GitlabClient {
         revision: j.commit.short_id,
         dateTime: GitlabClient.normalizeTime(j.finished_at),
         result: j.status,
-        jobName: j.name
+        jobName: j.name,
+        url: j.web_url
       };
     });
     console.log(`${chalk.cyanBright(`>> Determined ${deploymentList.length} production deployment events\n`)}`);

@@ -217,6 +217,38 @@ describe("GitlabClient", () => {
       expect(filteredJob.created_at).toBe(laterJobRun.created_at);
 
     });
+
+    test("should ignore jobs that are not finished", () => {
+      
+      const unfinishedJobRun = someJob();
+      unfinishedJobRun.name = "job-name";
+      unfinishedJobRun.finished_at = null;
+      const jobs = [
+        unfinishedJobRun
+      ];
+      const filteredJob = createApi()
+          .findProdDeploymentJob(jobs, "123455", ["job-name"]);
+        
+      expect(filteredJob).toBeUndefined();
+    });
+
+    test("should ignore jobs among multiple candidates that are not finished", () => {
+      
+      const unfinishedJobRun1 = someJob();
+      unfinishedJobRun1.name = "job-name";
+      unfinishedJobRun1.finished_at = null;
+
+      const unfinishedJobRun2 = someJob();
+      unfinishedJobRun2.name = "job-name";
+      unfinishedJobRun2.finished_at = null;
+      const jobs = [
+        unfinishedJobRun1, unfinishedJobRun2
+      ];
+      const filteredJob = createApi()
+          .findProdDeploymentJob(jobs, "123455", ["job-name"]);
+        
+      expect(filteredJob).toBeUndefined();
+    });
   });
 
   describe("getChangesAndDeploymentsTimeline", () => {
