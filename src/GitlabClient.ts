@@ -55,14 +55,14 @@ export class GitlabClient {
         console.log(`${chalk.yellow("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
           + `choosing '${selectedJob.name}' run at ${selectedJob.created_at}`);
       } else {
-        console.log(`${chalk.red("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
+        console.log(`${chalk.yellow("WARNING")} Found ${deploymentCandidates.length} deployment jobs for pipeline ${pipelineId}, `
           + `could not determine which one to choose`);
       }
       
       return selectedJob;
 
     } else {
-      console.log(`${chalk.red("WARNING")} Found no deployment jobs for pipeline ${pipelineId} among jobs named ${allJobs.map((j: any) => j.name)}`);
+      console.log(`${chalk.yellow("WARNING")} Found no deployment jobs for pipeline ${pipelineId} among jobs named ${allJobs.map((j: any) => j.name)}`);
       return undefined;
     }
   }

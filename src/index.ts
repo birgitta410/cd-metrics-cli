@@ -2,6 +2,7 @@ import yargs from "yargs";
 import prompts = require('prompts');
 import chalk = require("chalk");
 import moment = require("moment");
+import fs = require("fs");
 
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./GitlabClient";
@@ -31,16 +32,34 @@ Timeline ${chalk.cyanBright(GitlabClient.gitlabDateString(gitlabQuery.since))} -
     .getChangesAndDeploymentsTimeline(projectId, gitlabQuery);
 
   const listEventsUserPrompt = await prompts({
-    type: "confirm",
+    type: "select",
     name: "value",
     message: "Print events?",
-    initial: true
+    choices: [
+      { title: "Yes", value: "yes" },
+      { title: "No", value: "no" },
+      { title: "To file", value: "file" }
+    ],
+    max: 1,
+    hint: "- Space to select. Return to submit"
   });
-  
-  if(listEventsUserPrompt.value === true) {
-    eventsTimeLine.forEach(event => {
-      console.log(`${event.eventType}\t${event.revision}\t${event.dateTime}\t${event.isMergeCommit || ""}\t${event.result || ""}`);
+
+  const output = eventsTimeLine.map(event => {
+    return `${event.eventType}\t${event.revision}\t${event.dateTime}\t${event.isMergeCommit || ""}\t${event.result || ""}`;
+  });
+
+  if(listEventsUserPrompt.value === "yes") {
+    output.forEach(line => {
+      console.log(`${line}`);
     });
+  } else if(listEventsUserPrompt.value === "file") {
+    const fileNamePrompt = await prompts({
+      type: "text",
+      name: "value",
+      message: "File name? (will be written to current directory)"
+    });
+    console.log(`Writing output to file ${chalk.cyanBright(fileNamePrompt.value)}`);
+    fs.writeFileSync(fileNamePrompt.value, output.join("\n"));
   }
 }
 
