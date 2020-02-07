@@ -3,22 +3,16 @@ import * as _ from "lodash";
 import chalk from "chalk";
 
 import { Gitlab } from "gitlab";
-import moment = require('moment');
 
 import { RequestHelper } from "./RequestHelper";
+import { CdEventsQuery, CdChangeReader, CdDeploymentReader } from "./Interfaces";
+import { CdEventsWriter } from "./CdEventsWriter";
 
 export class GitlabConfig {
   constructor(public url: string, public defaultProjectId: number, public defaultProjectName: string) {}
 }
 
-export interface GitlabQuery {
-  since: moment.Moment,
-  until: moment.Moment,
-  branch: string,
-  prodDeploymentJobNames: string[]
-}
-
-export class GitlabClient {
+export class GitlabClient implements CdChangeReader, CdDeploymentReader {
   api: Gitlab;
   config: GitlabConfig;
 
@@ -67,11 +61,11 @@ export class GitlabClient {
     }
   }
 
-  public async loadJobs(projectId: number, query: GitlabQuery): Promise<any> {
+  public async loadJobs(projectId: number, query: CdEventsQuery): Promise<any[]> {
     const queryParams = { 
       ref: query.branch,
-      updated_after: GitlabClient.gitlabDateString(query.since),
-      updated_before: GitlabClient.gitlabDateString(query.until)
+      updated_after: CdEventsWriter.gitlabDateString(query.since),
+      updated_before: CdEventsWriter.gitlabDateString(query.until)
     };
     const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, queryParams);
     
@@ -101,8 +95,8 @@ export class GitlabClient {
 
   public async loadCommits(
     projectId: number,
-    query: GitlabQuery
-  ): Promise<any> {
+    query: CdEventsQuery
+  ): Promise<any[]> {
 
     const targetBranchPattern = query.branch;
     let targetBranches = [query.branch];
@@ -113,8 +107,8 @@ export class GitlabClient {
     const commitsPerBranch = await Promise.all(targetBranches.map(async  (branchName) => {
       return <any[]><unknown>this.api.Commits.all(projectId, {
         refName: branchName,
-        since: GitlabClient.gitlabDateString(query.since),
-        until: GitlabClient.gitlabDateString(query.until),
+        since: CdEventsWriter.gitlabDateString(query.since),
+        until: CdEventsWriter.gitlabDateString(query.until),
         all: true
       });
     }));
@@ -126,52 +120,6 @@ export class GitlabClient {
     console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es) ${chalk.cyanBright(targetBranches)}`);
     return commits;
       
-  }
-
-  public static normalizeTime(time:string): string {
-    return moment(time).format("YYYY-MM-DD HH:mm:ss");
-  }
-
-  public static normalizedNow(): string {
-    return moment().format("YYYY-MM-DD HH:mm:ss");
-  }
-
-  public static gitlabDateString(date: moment.Moment): string {
-    return date.format("YYYY-MM-DDT00:00:00.000+00:00");
-  }
-  
-
-  public async getChangesAndDeploymentsTimeline(projectId: number, query: GitlabQuery): Promise<any[]> {
-    
-    const commits = await this.loadCommits(projectId, query);
-    const changeList = commits.map((c: any) => {
-      const isMergeCommit = c.parent_ids.length > 1;
-      return {
-        eventType: "change",
-        revision: c.short_id,
-        dateTime: GitlabClient.normalizeTime(c.created_at),
-        isMergeCommit: isMergeCommit
-      };
-    });
-    console.log(`${chalk.cyanBright(`>> Determined ${changeList.length} change events\n`)}`);
-
-    const jobs = await this.loadJobs(projectId, query);
-    const deploymentList: any[] = jobs.map((j: any) => {
-      return {
-        eventType: "deployment",
-        revision: j.commit.short_id,
-        dateTime: GitlabClient.normalizeTime(j.finished_at),
-        result: j.status,
-        jobName: j.name,
-        url: j.web_url
-      };
-    });
-    console.log(`${chalk.cyanBright(`>> Determined ${deploymentList.length} production deployment events\n`)}`);
-
-    return _.chain(changeList)
-      .union(deploymentList)
-      .sortBy("dateTime")
-      .value();
   }
 
 }

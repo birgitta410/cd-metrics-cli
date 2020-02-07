@@ -1,70 +1,9 @@
 import yargs from "yargs";
-import prompts = require('prompts');
-import chalk = require("chalk");
 import moment = require("moment");
-import fs = require("fs");
 
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./GitlabClient";
-
-const OUTPUT_FOLDER = "cd-metrics-cli-output";
-
-const listChangesAndDeployments = async (projectId:number, 
-  releaseBranch:string,
-  gitlabUrl:string,
-  gitlabToken:string,
-  deploymentJobs:string[],
-  since: moment.Moment,
-  until: moment.Moment) => {
-  
-  const gitlabQuery = {
-    since: moment(since),
-    until: moment(until),
-    branch: releaseBranch,
-    prodDeploymentJobNames: deploymentJobs
-  };
-
-  console.log(`Getting changes and deployments for project ${chalk.cyanBright(projectId)},
-focusing on changes and pipelines on branch ${chalk.cyanBright(releaseBranch)},
-considering jobs named ${chalk.cyanBright(JSON.stringify(gitlabQuery.prodDeploymentJobNames))} as production deployments.
-Timeline ${chalk.cyanBright(GitlabClient.gitlabDateString(gitlabQuery.since))} - ${chalk.cyanBright(GitlabClient.gitlabDateString(gitlabQuery.until))}
-`);
-
-  const eventsTimeLine = await createGitlabClient(projectId, gitlabUrl, gitlabToken)
-    .getChangesAndDeploymentsTimeline(projectId, gitlabQuery);
-
-  const listEventsUserPrompt = await prompts({
-    type: "select",
-    name: "value",
-    message: "Print events?",
-    choices: [
-      { title: "Yes", value: "yes" },
-      { title: "No", value: "no" },
-      { title: "To file", value: "file" }
-    ],
-    max: 1,
-    hint: "- Space to select. Return to submit"
-  });
-
-  const output = eventsTimeLine.map(event => {
-    return `${event.eventType}\t${event.revision}\t${event.dateTime}\t${event.isMergeCommit || ""}\t${event.result || ""}`;
-  });
-
-  if(listEventsUserPrompt.value === "yes") {
-    output.forEach(line => {
-      console.log(`${line}`);
-    });
-  } else if(listEventsUserPrompt.value === "file") {
-    const fileNamePrompt = await prompts({
-      type: "text",
-      name: "value",
-      message: "File name? (will be written to ./outputs)"
-    });
-    const filePath = `./${OUTPUT_FOLDER}/${fileNamePrompt.value}`;
-    console.log(`Writing output to file ${chalk.cyanBright(filePath)}`);
-    fs.writeFileSync(`${filePath}`, output.join("\n"));
-  }
-}
+import { CdEventsWriter } from './CdEventsWriter';
 
 const createGitlabClient = (projectId: number, host:string, token:string) => {
   const api = new Gitlab({
@@ -127,13 +66,10 @@ yargs
 
     const since = moment(argv.since);
     const until = argv.until === "today" ? moment() : moment(argv.until);
-    await listChangesAndDeployments(argv.projectId, 
-      argv.releaseBranch, 
-      gitlabUrl,
-      gitlabToken, 
-      argv.deploymentJobs, 
-      since, 
-      until);
+
+    const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken)
+    const writer = new CdEventsWriter(gitlabClient, gitlabClient);
+    await writer.listChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.deploymentJobs, since, until);
     
   })
   .argv
