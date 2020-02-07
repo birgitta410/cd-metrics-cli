@@ -7,6 +7,8 @@ import fs = require("fs");
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./GitlabClient";
 
+const OUTPUT_FOLDER = "cd-metrics-cli-output";
+
 const listChangesAndDeployments = async (projectId:number, 
   releaseBranch:string,
   gitlabUrl:string,
@@ -56,10 +58,11 @@ Timeline ${chalk.cyanBright(GitlabClient.gitlabDateString(gitlabQuery.since))} -
     const fileNamePrompt = await prompts({
       type: "text",
       name: "value",
-      message: "File name? (will be written to current directory)"
+      message: "File name? (will be written to ./outputs)"
     });
-    console.log(`Writing output to file ${chalk.cyanBright(fileNamePrompt.value)}`);
-    fs.writeFileSync(fileNamePrompt.value, output.join("\n"));
+    const filePath = `./${OUTPUT_FOLDER}/${fileNamePrompt.value}`;
+    console.log(`Writing output to file ${chalk.cyanBright(filePath)}`);
+    fs.writeFileSync(`${filePath}`, output.join("\n"));
   }
 }
 
