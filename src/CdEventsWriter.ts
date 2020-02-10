@@ -31,10 +31,9 @@ export class CdEventsWriter {
   ) {}
 
   public async getChangesAndDeploymentsTimeline(
-    projectId: number,
     query: CdEventsQuery
   ): Promise<any[]> {
-    const commits = await this.changeReader.loadCommits(projectId, query);
+    const commits = await this.changeReader.loadCommits(query);
     const changeList = commits.map((c: any) => {
       const isMergeCommit = c.parent_ids.length > 1;
       return {
@@ -50,7 +49,7 @@ export class CdEventsWriter {
       )}`
     );
 
-    const jobs = await this.deploymentReader.loadJobs(projectId, query);
+    const jobs = await this.deploymentReader.loadJobs(query);
     const deploymentList: any[] = jobs.map((j: any) => {
       return {
         eventType: "deployment",
@@ -104,7 +103,6 @@ export class CdEventsWriter {
       `);
 
     const eventsTimeLine = await this.getChangesAndDeploymentsTimeline(
-      projectId,
       gitlabQuery
     );
 

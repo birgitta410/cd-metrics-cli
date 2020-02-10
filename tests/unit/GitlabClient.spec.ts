@@ -10,6 +10,8 @@ describe("GitlabClient", () => {
   let commitsApiMock: any = {};
   let branchesApiMock: any = {};
 
+  const someProjectId = 1111;
+
   function resetMocks() {
     apiMock = new Gitlab();
     apiMock.Pipelines = new Pipelines();
@@ -39,7 +41,7 @@ describe("GitlabClient", () => {
   });
 
   function createApi() {
-    return new GitlabClient(apiMock, new GitlabConfig("someUrl", 1111, "the-project"));
+    return new GitlabClient(apiMock, new GitlabConfig("someUrl", someProjectId));
   }
 
   function someJob() : any {
@@ -109,7 +111,7 @@ describe("GitlabClient", () => {
         deploymentJob
       ]);
 
-      const actualDeploymentJobs = await createApi().loadJobs(1111, {
+      const actualDeploymentJobs = await createApi().loadJobs({
         since: moment(),
         until: moment(),
         branch: "master",
@@ -142,7 +144,7 @@ describe("GitlabClient", () => {
         branch1, branch2
       ]);
 
-      const actualDeploymentJobs = await createApi().loadJobs(1111, {
+      const actualDeploymentJobs = await createApi().loadJobs({
         since: moment(),
         until: moment(),
         branch: "^release",
@@ -151,7 +153,7 @@ describe("GitlabClient", () => {
 
       expect(actualDeploymentJobs.length).toBe(4);
       expect(pipelinesApiMock.all).toHaveBeenCalledTimes(2);
-      expect(branchesApiMock.all).toHaveBeenCalledWith(1111, { search: "^release" });
+      expect(branchesApiMock.all).toHaveBeenCalledWith(someProjectId, { search: "^release" });
 
     });
   });
@@ -163,7 +165,7 @@ describe("GitlabClient", () => {
         commit
       ]);
 
-      const actualCommits = await createApi().loadCommits(1111, {
+      const actualCommits = await createApi().loadCommits({
         since: moment(),
         until: moment(),
         branch: "master",
@@ -193,7 +195,7 @@ describe("GitlabClient", () => {
         branch1, branch2
       ]);
 
-      const actualCommits = await createApi().loadCommits(1111, {
+      const actualCommits = await createApi().loadCommits({
         since: moment(),
         until: moment(),
         branch: "^release",

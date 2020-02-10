@@ -9,16 +9,18 @@ import { CdEventsQuery, CdChangeReader, CdDeploymentReader } from "./Interfaces"
 import { CdEventsWriter } from "./CdEventsWriter";
 
 export class GitlabConfig {
-  constructor(public url: string, public defaultProjectId: number, public defaultProjectName: string) {}
+  constructor(public url: string, public projectId: number) {}
 }
 
 export class GitlabClient implements CdChangeReader, CdDeploymentReader {
   api: Gitlab;
   config: GitlabConfig;
+  projectId: number;
 
   constructor(api: Gitlab, config: GitlabConfig) {
     this.api = api;
     this.config = config;
+    this.projectId = config.projectId;
   }
 
   private findMostRecentJobRun(jobCandidates: any[], jobName:string): any | undefined {
@@ -61,11 +63,11 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     }
   }
 
-  public async loadJobs(projectId: number, query: CdEventsQuery): Promise<any[]> {
+  public async loadJobs(query: CdEventsQuery): Promise<any[]> {
 
-    let targetBranches = await this.getTargetBranches(projectId, query.branch);
-    const pipelinesPerBranch = await Promise.all(targetBranches.map(async  (branchName) => {
-      return <any[]><unknown>this.api.Pipelines.all(projectId, {
+    let targetBranches = await this.getTargetBranches(query.branch);
+    const pipelinesPerBranch = await Promise.all(targetBranches.map(async  (branchName: any) => {
+      return <any[]><unknown>this.api.Pipelines.all(this.projectId, {
         ref: branchName,
         updated_after: CdEventsWriter.gitlabDateString(query.since),
         updated_before: CdEventsWriter.gitlabDateString(query.until)
@@ -79,7 +81,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     const filterForJobNames = query.prodDeploymentJobNames;
 
     const jobsForPipelinesInBranch = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
-      const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(projectId, p.id);
+      const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
       return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
     });
     
@@ -89,32 +91,30 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
   };
 
   private async getBranches(
-    projectId: number,
     branchSearchPattern: string
   ): Promise<any[]> {
-    const branches = await <any[]><unknown>this.api.Branches.all(projectId, {
+    const branches = await <any[]><unknown>this.api.Branches.all(this.projectId, {
       search: branchSearchPattern
     });
     return branches.map(b => b.name);
   }
 
-  private async getTargetBranches(projectId: number, branchQuery: string) {
+  private async getTargetBranches(branchQuery: string) {
     const targetBranchPattern = branchQuery;
     if(targetBranchPattern.startsWith("^")) {
-      return await this.getBranches(projectId, targetBranchPattern);
+      return await this.getBranches(targetBranchPattern);
     }
     return [ branchQuery ];
   }
 
   public async loadCommits(
-    projectId: number,
     query: CdEventsQuery
   ): Promise<any[]> {
 
-    let targetBranches = await this.getTargetBranches(projectId, query.branch);
+    let targetBranches = await this.getTargetBranches(query.branch);
 
-    const commitsPerBranch = await Promise.all(targetBranches.map(async  (branchName) => {
-      return <any[]><unknown>this.api.Commits.all(projectId, {
+    const commitsPerBranch = await Promise.all(targetBranches.map(async  (branchName: any) => {
+      return <any[]><unknown>this.api.Commits.all(this.projectId, {
         refName: branchName,
         since: CdEventsWriter.gitlabDateString(query.since),
         until: CdEventsWriter.gitlabDateString(query.until),

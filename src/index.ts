@@ -13,8 +13,8 @@ const createGitlabClient = (projectId: number, host:string, token:string) => {
 
   const config = new GitlabConfig(
     "some url, TODO, currently never used!!",
-    projectId,
-    "the-project");
+    projectId
+  );
 
   return new GitlabClient(api, config);
 }

@@ -3,13 +3,13 @@ import { CdChangeReader, CdDeploymentReader } from '../../src/Interfaces';
 import { CdEventsWriter } from '../../src/CdEventsWriter';
 
 class CdChangeReaderMock implements CdChangeReader {
-  loadCommits(projectId: number, query: import("../../src/Interfaces").CdEventsQuery): Promise<any[]> {
+  loadCommits(query: import("../../src/Interfaces").CdEventsQuery): Promise<any[]> {
     throw new Error("Method will be mocked.");
   }
 }
 
 class CdDeploymentReaderMock implements CdDeploymentReader {
-  loadJobs(projectId: number, query: import("../../src/Interfaces").CdEventsQuery): Promise<any[]> {
+  loadJobs(query: import("../../src/Interfaces").CdEventsQuery): Promise<any[]> {
     throw new Error("Method will be mocked.");
   }
 }
@@ -99,7 +99,7 @@ describe("CdEventsWriter", () => {
       ]);
 
       const eventsWriter = new CdEventsWriter(changeReaderMock, deploymentReaderMock);
-      const events = await eventsWriter.getChangesAndDeploymentsTimeline(1111, {
+      const events = await eventsWriter.getChangesAndDeploymentsTimeline({
         since: moment(),
         until: moment(),
         branch: "master",

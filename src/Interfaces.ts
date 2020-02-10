@@ -8,10 +8,10 @@ export interface CdEventsQuery {
 }
 
 export interface CdChangeReader {
-  loadCommits(projectId: number, query: CdEventsQuery): Promise<any[]>;
+  loadCommits(query: CdEventsQuery): Promise<any[]>;
 }
 
 export interface CdDeploymentReader {
-  loadJobs(projectId: number, query: CdEventsQuery): Promise<any[]>;
+  loadJobs(query: CdEventsQuery): Promise<any[]>;
 }
 
