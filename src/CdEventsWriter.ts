@@ -7,7 +7,8 @@ import prompts = require("prompts");
 import {
   CdChangeReader,
   CdDeploymentReader,
-  CdEventsQuery
+  CdEventsQuery,
+  CdEvent
 } from "./Interfaces";
 
 const OUTPUT_FOLDER = "cd-metrics-cli-output";
@@ -33,33 +34,15 @@ export class CdEventsWriter {
   public async getChangesAndDeploymentsTimeline(
     query: CdEventsQuery
   ): Promise<any[]> {
-    const commits = await this.changeReader.loadChanges(query);
-    const changeList = commits.map((c: any) => {
-      const isMergeCommit = c.parent_ids.length > 1;
-      return {
-        eventType: "change",
-        revision: c.short_id,
-        dateTime: CdEventsWriter.normalizeTime(c.created_at),
-        isMergeCommit: isMergeCommit
-      };
-    });
+    const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
+
     console.log(
       `${chalk.cyanBright(
         `>> Determined ${changeList.length} change events\n`
       )}`
     );
 
-    const jobs = await this.deploymentReader.loadProductionDeployments(query);
-    const deploymentList: any[] = jobs.map((j: any) => {
-      return {
-        eventType: "deployment",
-        revision: j.commit.short_id,
-        dateTime: CdEventsWriter.normalizeTime(j.finished_at),
-        result: j.status,
-        jobName: j.name,
-        url: j.web_url
-      };
-    });
+    const deploymentList: CdEvent[] = await this.deploymentReader.loadProductionDeployments(query);
     console.log(
       `${chalk.cyanBright(
         `>> Determined ${deploymentList.length} production deployment events\n`

@@ -7,11 +7,27 @@ export interface CdEventsQuery {
   prodDeploymentJobNames: string[];
 }
 
+export interface CdEvent {
+  eventType: "change" | "deployment",
+  revision: string,
+  dateTime: string,
+}
+
+export interface CdChangeEvent extends CdEvent {
+  isMergeCommit: boolean
+};
+
+export interface CdDeploymentEvent extends CdEvent {
+  result: string,
+  jobName: string,
+  url?: string
+};
+
 export interface CdChangeReader {
-  loadChanges(query: CdEventsQuery): Promise<any[]>;
+  loadChanges(query: CdEventsQuery): Promise<CdChangeEvent[]>;
 }
 
 export interface CdDeploymentReader {
-  loadProductionDeployments(query: CdEventsQuery): Promise<any[]>;
+  loadProductionDeployments(query: CdEventsQuery): Promise<CdDeploymentEvent[]>;
 }
 

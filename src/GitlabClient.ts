@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { Gitlab } from "gitlab";
 
 import { RequestHelper } from "./RequestHelper";
-import { CdEventsQuery, CdChangeReader, CdDeploymentReader } from "./Interfaces";
+import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent } from "./Interfaces";
 import { CdEventsWriter } from "./CdEventsWriter";
 
 export class GitlabConfig {
@@ -63,7 +63,18 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     }
   }
 
-  public async loadProductionDeployments(query: CdEventsQuery): Promise<any[]> {
+  private mapToDeploymentEvent(gitlabJob: any): CdDeploymentEvent {
+    return {
+      eventType: "deployment",
+      revision: gitlabJob.commit.short_id,
+      dateTime: CdEventsWriter.normalizeTime(gitlabJob.finished_at),
+      result: gitlabJob.status,
+      jobName: gitlabJob.name,
+      url: gitlabJob.web_url
+    };
+  }
+
+  public async loadProductionDeployments(query: CdEventsQuery): Promise<CdDeploymentEvent[]> {
 
     let targetBranches = await this.getTargetBranches(query.branch);
     const pipelinesPerBranch = await Promise.all(targetBranches.map(async  (branchName: any) => {
@@ -85,7 +96,10 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
       return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
     });
     
-    const compactedJobs = _.compact(jobsForPipelinesInBranch);
+    const compactedJobs = _.chain(jobsForPipelinesInBranch)
+      .compact()
+      .map(this.mapToDeploymentEvent)
+      .value();
     console.log(`Got and filtered ${chalk.cyanBright(compactedJobs.length)} jobs`);
     return compactedJobs;
   };
@@ -107,9 +121,19 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     return [ branchQuery ];
   }
 
+  private mapToChangeEvent(gitlabCommit: any): CdChangeEvent {
+    const isMergeCommit = gitlabCommit.parent_ids.length > 1;
+    return {
+      eventType: "change",
+      revision: gitlabCommit.short_id,
+      dateTime: CdEventsWriter.normalizeTime(gitlabCommit.created_at),
+      isMergeCommit: isMergeCommit
+    };
+  }
+
   public async loadChanges(
     query: CdEventsQuery
-  ): Promise<any[]> {
+  ): Promise<CdChangeEvent[]> {
 
     let targetBranches = await this.getTargetBranches(query.branch);
 
@@ -125,6 +149,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     const commits = _.chain(commitsPerBranch)
       .flatten()
       .uniqBy("short_id")
+      .map(this.mapToChangeEvent)
       .value();
     console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es) ${chalk.cyanBright(targetBranches)}`);
     return commits;

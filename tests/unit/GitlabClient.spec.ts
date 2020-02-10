@@ -1,6 +1,7 @@
 import { Gitlab, Pipelines, Commits, Branches } from "gitlab";
 import { GitlabClient, GitlabConfig } from "../../src/GitlabClient";
 import moment = require('moment');
+import { CdEventsWriter } from '@/CdEventsWriter';
 
 jest.mock("gitlab");
 
@@ -98,7 +99,7 @@ describe("GitlabClient", () => {
     };
   }
 
-  describe("loadJobs", () => {
+  describe("loadProductionDeployments", () => {
     test("should ask for pipelines on branch and load their respective deployment jobs", async () => {
       const deploymentJob: any = someJob();
       deploymentJob.name = "the-deployment-job";
@@ -121,6 +122,12 @@ describe("GitlabClient", () => {
       expect(actualDeploymentJobs.length).toBe(2);
       expect(pipelinesApiMock.all).toHaveBeenCalledTimes(1);
       expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(2);
+
+      expect(actualDeploymentJobs[0].eventType).toBe("deployment");
+      expect(actualDeploymentJobs[0].revision).toBe(deploymentJob.commit.short_id);
+      expect(CdEventsWriter.normalizeTime(actualDeploymentJobs[0].dateTime)).toBe(CdEventsWriter.normalizeTime(deploymentJob.finished_at));
+      expect(actualDeploymentJobs[0].result).toBe(deploymentJob.status);
+      expect(actualDeploymentJobs[0].jobName).toBe(deploymentJob.name);
 
     });
 
@@ -174,7 +181,7 @@ describe("GitlabClient", () => {
     });
   });
 
-  describe("loadCommits", () => {
+  describe("loadChanges", () => {
     test("should get all commits for the specified branch", async () => {
       const commit = someCommit();
       commitsApiMock.all.mockResolvedValue([
@@ -189,7 +196,10 @@ describe("GitlabClient", () => {
       });
 
       expect(actualCommits.length).toBe(1);
-      expect(actualCommits[0].short_id).toBe(commit.short_id);
+
+      expect(actualCommits[0].revision).toBe(commit.short_id);
+      expect(moment(actualCommits[0].dateTime).valueOf()).toBe(moment(commit.created_at).valueOf());
+      expect(actualCommits[0].isMergeCommit).toBe(false);
 
     });
 
