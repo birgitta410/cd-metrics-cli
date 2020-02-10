@@ -3,14 +3,14 @@ import { CdChangeReader, CdDeploymentReader, CdEventsQuery } from '../../src/Int
 import { CdEventsWriter } from '../../src/CdEventsWriter';
 
 class CdChangeReaderMock implements CdChangeReader {
-  loadCommits(query: CdEventsQuery): Promise<any[]> {
-    throw new Error("Method will be mocked.");
+  loadChanges(query: CdEventsQuery): Promise<any[]> {
+    throw new Error("Method should be mocked.");
   }
 }
 
 class CdDeploymentReaderMock implements CdDeploymentReader {
   loadProductionDeployments(query: CdEventsQuery): Promise<any[]> {
-    throw new Error("Method will be mocked.");
+    throw new Error("Method should be mocked.");
   }
 }
 
@@ -21,7 +21,7 @@ describe("CdEventsWriter", () => {
   function resetMocks() {
 
     changeReaderMock = new CdChangeReaderMock();
-    changeReaderMock.loadCommits = jest.fn();
+    changeReaderMock.loadChanges = jest.fn();
 
     deploymentReaderMock = new CdDeploymentReaderMock();
     deploymentReaderMock.loadProductionDeployments = jest.fn();
@@ -94,7 +94,7 @@ describe("CdEventsWriter", () => {
       deploymentReaderMock.loadProductionDeployments.mockResolvedValue([
         deploymentJob
       ]);
-      changeReaderMock.loadCommits.mockResolvedValue([
+      changeReaderMock.loadChanges.mockResolvedValue([
         commit
       ]);
 
@@ -126,7 +126,7 @@ describe("CdEventsWriter", () => {
 
     test("should not crash if no deployment jobs can be found", async () => {
       deploymentReaderMock.loadProductionDeployments.mockResolvedValue([ ]);
-      changeReaderMock.loadCommits.mockResolvedValue([
+      changeReaderMock.loadChanges.mockResolvedValue([
         someCommit()
       ]);
 

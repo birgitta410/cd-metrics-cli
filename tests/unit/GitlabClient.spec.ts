@@ -181,7 +181,7 @@ describe("GitlabClient", () => {
         commit
       ]);
 
-      const actualCommits = await createApi().loadCommits({
+      const actualCommits = await createApi().loadChanges({
         since: moment(),
         until: moment(),
         branch: "master",
@@ -211,7 +211,7 @@ describe("GitlabClient", () => {
         branch1, branch2
       ]);
 
-      const actualCommits = await createApi().loadCommits({
+      const actualCommits = await createApi().loadChanges({
         since: moment(),
         until: moment(),
         branch: "^release",

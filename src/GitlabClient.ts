@@ -107,7 +107,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     return [ branchQuery ];
   }
 
-  public async loadCommits(
+  public async loadChanges(
     query: CdEventsQuery
   ): Promise<any[]> {
 

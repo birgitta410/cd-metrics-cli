@@ -33,7 +33,7 @@ export class CdEventsWriter {
   public async getChangesAndDeploymentsTimeline(
     query: CdEventsQuery
   ): Promise<any[]> {
-    const commits = await this.changeReader.loadCommits(query);
+    const commits = await this.changeReader.loadChanges(query);
     const changeList = commits.map((c: any) => {
       const isMergeCommit = c.parent_ids.length > 1;
       return {

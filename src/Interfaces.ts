@@ -8,7 +8,7 @@ export interface CdEventsQuery {
 }
 
 export interface CdChangeReader {
-  loadCommits(query: CdEventsQuery): Promise<any[]>;
+  loadChanges(query: CdEventsQuery): Promise<any[]>;
 }
 
 export interface CdDeploymentReader {
