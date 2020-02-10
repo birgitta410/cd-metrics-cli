@@ -49,7 +49,7 @@ export class CdEventsWriter {
       )}`
     );
 
-    const jobs = await this.deploymentReader.loadJobs(query);
+    const jobs = await this.deploymentReader.loadProductionDeployments(query);
     const deploymentList: any[] = jobs.map((j: any) => {
       return {
         eventType: "deployment",

@@ -111,7 +111,7 @@ describe("GitlabClient", () => {
         deploymentJob
       ]);
 
-      const actualDeploymentJobs = await createApi().loadJobs({
+      const actualDeploymentJobs = await createApi().loadProductionDeployments({
         since: moment(),
         until: moment(),
         branch: "master",
@@ -144,7 +144,7 @@ describe("GitlabClient", () => {
         branch1, branch2
       ]);
 
-      const actualDeploymentJobs = await createApi().loadJobs({
+      const actualDeploymentJobs = await createApi().loadProductionDeployments({
         since: moment(),
         until: moment(),
         branch: "^release",
@@ -155,6 +155,22 @@ describe("GitlabClient", () => {
       expect(pipelinesApiMock.all).toHaveBeenCalledTimes(2);
       expect(branchesApiMock.all).toHaveBeenCalledWith(someProjectId, { search: "^release" });
 
+    });
+
+    test("should not crash if no deployment jobs can be found", async () => {
+      const nonDeploymentJob: any = someJob();
+      nonDeploymentJob.name = "some-job";
+      pipelinesApiMock.all.mockResolvedValue([somePipeline()]);
+      pipelinesApiMock.showJobs.mockResolvedValue([nonDeploymentJob]);
+
+      const events = await createApi().loadProductionDeployments({
+        since: moment(),
+        until: moment(),
+        branch: "master",
+        prodDeploymentJobNames: ["deployment-job"]
+      });
+
+      expect(events.length).toBe(0);
     });
   });
 

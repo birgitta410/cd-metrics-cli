@@ -63,7 +63,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     }
   }
 
-  public async loadJobs(query: CdEventsQuery): Promise<any[]> {
+  public async loadProductionDeployments(query: CdEventsQuery): Promise<any[]> {
 
     let targetBranches = await this.getTargetBranches(query.branch);
     const pipelinesPerBranch = await Promise.all(targetBranches.map(async  (branchName: any) => {

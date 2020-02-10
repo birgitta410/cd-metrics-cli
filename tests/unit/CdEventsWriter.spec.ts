@@ -1,15 +1,15 @@
 import moment = require('moment');
-import { CdChangeReader, CdDeploymentReader } from '../../src/Interfaces';
+import { CdChangeReader, CdDeploymentReader, CdEventsQuery } from '../../src/Interfaces';
 import { CdEventsWriter } from '../../src/CdEventsWriter';
 
 class CdChangeReaderMock implements CdChangeReader {
-  loadCommits(query: import("../../src/Interfaces").CdEventsQuery): Promise<any[]> {
+  loadCommits(query: CdEventsQuery): Promise<any[]> {
     throw new Error("Method will be mocked.");
   }
 }
 
 class CdDeploymentReaderMock implements CdDeploymentReader {
-  loadJobs(query: import("../../src/Interfaces").CdEventsQuery): Promise<any[]> {
+  loadProductionDeployments(query: CdEventsQuery): Promise<any[]> {
     throw new Error("Method will be mocked.");
   }
 }
@@ -24,7 +24,7 @@ describe("CdEventsWriter", () => {
     changeReaderMock.loadCommits = jest.fn();
 
     deploymentReaderMock = new CdDeploymentReaderMock();
-    deploymentReaderMock.loadJobs = jest.fn();
+    deploymentReaderMock.loadProductionDeployments = jest.fn();
 
   }
 
@@ -91,7 +91,7 @@ describe("CdEventsWriter", () => {
       const deploymentJob: any = someJob();
       deploymentJob.name = "some-deployment-job";
       const commit: any = someCommit();
-      deploymentReaderMock.loadJobs.mockResolvedValue([
+      deploymentReaderMock.loadProductionDeployments.mockResolvedValue([
         deploymentJob
       ]);
       changeReaderMock.loadCommits.mockResolvedValue([
@@ -124,29 +124,23 @@ describe("CdEventsWriter", () => {
 
     });
 
-    // test("should not crash if no deployment jobs can be found", async () => {
-    //   const nonDeploymentJob: any = someJob();
-    //   nonDeploymentJob.name = "some-job";
-    //   pipelinesApiMock.all.mockResolvedValue([
-    //     somePipeline()
-    //   ]);
-    //   pipelinesApiMock.showJobs.mockResolvedValue([
-    //     nonDeploymentJob
-    //   ]);
-    //   commitsApiMock.all.mockResolvedValue([
-    //     someCommit()
-    //   ]);
+    test("should not crash if no deployment jobs can be found", async () => {
+      deploymentReaderMock.loadProductionDeployments.mockResolvedValue([ ]);
+      changeReaderMock.loadCommits.mockResolvedValue([
+        someCommit()
+      ]);
 
-    //   const events = await createApi().getChangesAndDeploymentsTimeline(1111, {
-    //     since: moment(),
-    //     until: moment(),
-    //     branch: "master",
-    //     prodDeploymentJobNames: ["deployment-job"]
-    //   });
+      const eventsWriter = new CdEventsWriter(changeReaderMock, deploymentReaderMock);
+      const events = await eventsWriter.getChangesAndDeploymentsTimeline({
+        since: moment(),
+        until: moment(),
+        branch: "master",
+        prodDeploymentJobNames: ["deployment-job"]
+      });
 
-    //   expect(events.length).toBe(1);
+      expect(events.length).toBe(1);
 
-    // });
+    });
   });
 });
 

@@ -12,6 +12,6 @@ export interface CdChangeReader {
 }
 
 export interface CdDeploymentReader {
-  loadJobs(query: CdEventsQuery): Promise<any[]>;
+  loadProductionDeployments(query: CdEventsQuery): Promise<any[]>;
 }
 
