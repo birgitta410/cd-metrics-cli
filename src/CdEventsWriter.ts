@@ -90,7 +90,7 @@ export class CdEventsWriter {
     console.log(`Getting changes and deployments for project ${chalk.cyanBright(
       projectId
     )},
-      focusing on changes and pipelines on branch ${chalk.cyanBright(
+      focusing on changes and pipelines on branch(es) ${chalk.cyanBright(
         releaseBranch
       )},
       considering jobs named ${chalk.cyanBright(

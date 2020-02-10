@@ -117,6 +117,41 @@ describe("GitlabClient", () => {
       });
 
       expect(actualDeploymentJobs.length).toBe(2);
+      expect(pipelinesApiMock.all).toHaveBeenCalledTimes(1);
+      expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(2);
+
+    });
+
+    test("should ask for pipelines on multiple branches if branch name is pattern", async () => {
+      const deploymentJob: any = someJob();
+      deploymentJob.name = "the-deployment-job";
+      const otherJob: any = someJob();
+      otherJob.name = "some-job";
+      pipelinesApiMock.all.mockResolvedValue([
+        somePipeline(), somePipeline()
+      ]);
+      pipelinesApiMock.showJobs.mockResolvedValue([
+        deploymentJob
+      ]);
+
+      const branch1 = someBranch();
+      branch1.name = "release/1.2"
+      const branch2 = someBranch();
+      branch2.name = "release/1.3"
+      branchesApiMock.all.mockResolvedValue([
+        branch1, branch2
+      ]);
+
+      const actualDeploymentJobs = await createApi().loadJobs(1111, {
+        since: moment(),
+        until: moment(),
+        branch: "^release",
+        prodDeploymentJobNames: [deploymentJob.name]
+      });
+
+      expect(actualDeploymentJobs.length).toBe(4);
+      expect(pipelinesApiMock.all).toHaveBeenCalledTimes(2);
+      expect(branchesApiMock.all).toHaveBeenCalledWith(1111, { search: "^release" });
 
     });
   });

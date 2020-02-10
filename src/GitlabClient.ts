@@ -62,14 +62,19 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
   }
 
   public async loadJobs(projectId: number, query: CdEventsQuery): Promise<any[]> {
-    const queryParams = { 
-      ref: query.branch,
-      updated_after: CdEventsWriter.gitlabDateString(query.since),
-      updated_before: CdEventsWriter.gitlabDateString(query.until)
-    };
-    const pipelines = await <any[]><unknown>this.api.Pipelines.all(projectId, queryParams);
+
+    let targetBranches = await this.getTargetBranches(projectId, query.branch);
+    const pipelinesPerBranch = await Promise.all(targetBranches.map(async  (branchName) => {
+      return <any[]><unknown>this.api.Pipelines.all(projectId, {
+        ref: branchName,
+        updated_after: CdEventsWriter.gitlabDateString(query.since),
+        updated_before: CdEventsWriter.gitlabDateString(query.until)
+      });
+    }));
+
+    const pipelines = _.flatten(pipelinesPerBranch);
     
-    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on ${chalk.cyanBright(queryParams.ref)}`);
+    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on branch(es) ${chalk.cyanBright(targetBranches)}`);
 
     const filterForJobNames = query.prodDeploymentJobNames;
 
@@ -83,7 +88,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     return compactedJobs;
   };
 
-  public async getBranches(
+  private async getBranches(
     projectId: number,
     branchSearchPattern: string
   ): Promise<any[]> {
@@ -93,16 +98,20 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     return branches.map(b => b.name);
   }
 
+  private async getTargetBranches(projectId: number, branchQuery: string) {
+    const targetBranchPattern = branchQuery;
+    if(targetBranchPattern.startsWith("^")) {
+      return await this.getBranches(projectId, targetBranchPattern);
+    }
+    return [ branchQuery ];
+  }
+
   public async loadCommits(
     projectId: number,
     query: CdEventsQuery
   ): Promise<any[]> {
 
-    const targetBranchPattern = query.branch;
-    let targetBranches = [query.branch];
-    if(targetBranchPattern.startsWith("^")) {
-      targetBranches = await this.getBranches(projectId, targetBranchPattern);
-    }
+    let targetBranches = await this.getTargetBranches(projectId, query.branch);
 
     const commitsPerBranch = await Promise.all(targetBranches.map(async  (branchName) => {
       return <any[]><unknown>this.api.Commits.all(projectId, {

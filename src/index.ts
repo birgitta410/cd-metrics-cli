@@ -29,7 +29,7 @@ yargs
         describe: "The Gitlab project ID"
       })
       .option("releaseBranch", {
-        alias: "b",
+        alias: "rb",
         default: "master",
         description: "Name of the branch that releases to production"
       })
