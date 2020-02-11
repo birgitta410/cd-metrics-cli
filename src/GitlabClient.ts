@@ -74,21 +74,25 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     };
   }
 
-  public async loadProductionDeployments(query: CdEventsQuery): Promise<CdDeploymentEvent[]> {
+  private async getPipelinesForReferences(query: CdEventsQuery): Promise<any[]> {
 
-    let targetBranches = await this.getTargetBranches(query.branch);
-    const pipelinesPerBranch = await Promise.all(targetBranches.map(async  (branchName: any) => {
+    let targetRefs = await this.getRefNames(query);
+    const pipelinesPerRef = await Promise.all(targetRefs.map(async  (refName) => {
       return <any[]><unknown>this.api.Pipelines.all(this.projectId, {
-        ref: branchName,
+        ref: refName,
         updated_after: CdEventsWriter.gitlabDateString(query.since),
         updated_before: CdEventsWriter.gitlabDateString(query.until)
       });
     }));
-
-    const pipelines = _.flatten(pipelinesPerBranch);
+    const pipelines = _.flatten(pipelinesPerRef);
     
-    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on branch(es) ${chalk.cyanBright(targetBranches)}`);
+    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on branch(es)/tag(s) ${chalk.cyanBright(targetRefs)}`);
+    return pipelines;
+  }
 
+  public async loadProductionDeployments(query: CdEventsQuery): Promise<CdDeploymentEvent[]> {
+    const pipelines = await this.getPipelinesForReferences(query);
+    
     const filterForJobNames = query.prodDeploymentJobNames;
 
     const jobsForPipelinesInBranch = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
@@ -113,12 +117,29 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     return branches.map(b => b.name);
   }
 
-  private async getTargetBranches(branchQuery: string) {
+  private async loadTags(
+    tagSearchPattern: string
+  ): Promise<any[]> {
+    const tags = await <any[]><unknown>this.api.Tags.all(this.projectId, {
+      search: tagSearchPattern
+    });
+    return tags.map(b => b.name);
+  }
+
+  private async getTargetBranches(branchQuery: string): Promise<string[]> {
     const targetBranchPattern = branchQuery;
     if(targetBranchPattern.startsWith("^")) {
       return await this.getBranches(targetBranchPattern);
     }
     return [ branchQuery ];
+  }
+
+  private async getRefNames(query: CdEventsQuery): Promise<string[]> {
+    if(query.tags !== undefined) {
+      return await this.loadTags(query.tags);
+    } else {
+      return await this.getTargetBranches(query.branch);
+    }
   }
 
   private mapToChangeEvent(gitlabCommit: any): CdChangeEvent {
@@ -135,9 +156,9 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     query: CdEventsQuery
   ): Promise<CdChangeEvent[]> {
 
-    let targetBranches = await this.getTargetBranches(query.branch);
+    let targetRefs = await this.getRefNames(query);
 
-    const commitsPerBranch = await Promise.all(targetBranches.map(async  (branchName: any) => {
+    const commitsPerBranch = await Promise.all(targetRefs.map(async  (branchName: any) => {
       return <any[]><unknown>this.api.Commits.all(this.projectId, {
         refName: branchName,
         since: CdEventsWriter.gitlabDateString(query.since),
@@ -151,7 +172,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
       .uniqBy("short_id")
       .map(this.mapToChangeEvent)
       .value();
-    console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es) ${chalk.cyanBright(targetBranches)}`);
+    console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es)/tag(s) ${chalk.cyanBright(targetRefs)}`);
     return commits;
       
   }

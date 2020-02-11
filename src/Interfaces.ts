@@ -4,6 +4,7 @@ export interface CdEventsQuery {
   since: moment.Moment;
   until: moment.Moment;
   branch: string;
+  tags?: string;
   prodDeploymentJobNames: string[];
 }
 
