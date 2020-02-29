@@ -3,6 +3,7 @@ import moment from "moment";
 import chalk from "chalk";
 import * as _ from "lodash";
 import { Printer } from '../Printer';
+import { TimeUtil } from '../TimeUtil';
 
 export class CdStabilityData {
   
@@ -83,7 +84,8 @@ export class CdStabilityData {
     if(allFailures.length === 0 || allSuccesses.length === 0) {
       return {
         mttr: undefined,
-        mttrComment: `all runs in time frame are ${allFailures.length === 0 ? "successes" : "failures"}`,
+        numberOfRuns: pipelinesWithName.length,
+        mttrComment: `all ${pipelinesWithName.length} runs in time frame are ${allFailures.length === 0 ? "successes" : "failures"}`,
         pipelineName: pipelineName
       }
     }
@@ -112,6 +114,7 @@ export class CdStabilityData {
     });
     return {
       mttr: moment.duration(avgRestoreInMinutes, "minutes"),
+      numberOfRuns: pipelinesWithName.length,
       pipelineName: pipelineName
     }
     
@@ -136,15 +139,26 @@ export class CdStabilityCalculator {
   }
 
   public async printFailureRates(
-    releaseBranch: string,
+    branches: string[],
     since: moment.Moment,
     until: moment.Moment
   ): Promise<any> {
     const query = {
-      since: moment(since),
-      until: moment(until),
-      branch: releaseBranch
+      since: since,
+      until: until,
+      branches: branches
     };
+
+    console.log(`Getting failure rates and MTTRs,
+      focusing on pipelines running on branch(es) ${chalk.cyanBright(
+        query.branches
+      )},
+      Timeline ${chalk.cyanBright(
+        TimeUtil.gitlabApiDateString(query.since)
+      )} - ${chalk.cyanBright(
+        TimeUtil.gitlabApiDateString(query.until)
+    )}
+      `);
 
     const pipelines = await this.pipelineReader.loadPipelines(query);
 
@@ -163,7 +177,9 @@ export class CdStabilityCalculator {
 
     const pipelineMttrs = _.orderBy(data.pipelineMttrs, "pipelineName");
     pipelineMttrs.forEach(mttr => {
-      console.log(`${mttr.mttr ? mttr.mttr!.humanize() : `n/a`}\t${mttr.pipelineName}\t${mttr.mttrComment ? `(${mttr.mttrComment})` : ``}`);
+      console.log(`${mttr.mttr ? mttr.mttr!.humanize() : `n/a`}`
+        +`\t${mttr.mttrComment ? `(${mttr.mttrComment})` : `${mttr.numberOfRuns} run(s) considered`}`
+        +`\t${mttr.pipelineName}`);
     });
 
     const lines = _.orderBy(pipelines, "dateTime")

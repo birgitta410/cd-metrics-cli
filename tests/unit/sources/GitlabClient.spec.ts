@@ -271,7 +271,7 @@ describe("GitlabClient", () => {
   });
 
   describe("loadPipelines", () => {
-    test("should ask for pipelines on branch and load their respective deployment jobs", async () => {
+    test("should ask for pipelines on branches and load their respective deployment jobs", async () => {
       pipelinesApiMock.all.mockResolvedValue([
         someGitlabPipeline(), someGitlabPipeline()
       ]);
@@ -289,16 +289,16 @@ describe("GitlabClient", () => {
       mockMasterBranch();
 
       const query: CdStabilityQuery = {
-        branch: "master",
+        branches: ["master", "development"],
         since: moment(),
         until: moment() 
       };
       const actualPipelineRuns = await createApi().loadPipelines(query);
 
-      expect(actualPipelineRuns.length).toBe(2);
+      expect(actualPipelineRuns.length).toBe(4);
       expect(actualPipelineRuns[0].pipelineName).toBe("master>>build:test");
-      expect(pipelinesApiMock.all).toHaveBeenCalled();
-      expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(2);
+      expect(pipelinesApiMock.all).toHaveBeenCalledTimes(2);
+      expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(4);
 
     });
 

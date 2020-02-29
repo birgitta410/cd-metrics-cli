@@ -4,7 +4,7 @@ import moment from "moment";
 export interface CdStabilityQuery {
     since: moment.Moment;
     until: moment.Moment;
-    branch: string;
+    branches: string[];
   }
 
 export interface CdPipelineComponent {
@@ -40,6 +40,7 @@ export interface CdFailureRate {
 export interface CdMttr {
     mttr?: moment.Duration,
     mttrComment?: string,
+    numberOfRuns: number,
     pipelineName: string
 }
 

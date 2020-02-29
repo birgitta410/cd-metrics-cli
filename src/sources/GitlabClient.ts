@@ -7,8 +7,8 @@ import { Gitlab } from "gitlab";
 
 import { RequestHelper } from "../RequestHelper";
 import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "../throughput/Model";
-import { CdThroughputCalculator } from "../throughput/CdThroughputCalculator";
 import { CdPipelineReader, CdPipelineRun, CdJobRun, CdStabilityQuery } from '@/stability/Model';
+import { TimeUtil } from '../TimeUtil';
 
 export class GitlabConfig {
   constructor(public url: string, public projectId: number) {}
@@ -18,7 +18,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
   
   api: Gitlab;
   config: GitlabConfig;
-  projectId: number;
+  public projectId: number;
 
   constructor(api: Gitlab, config: GitlabConfig) {
     this.api = api;
@@ -70,7 +70,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     return {
       eventType: "deployment",
       revision: gitlabJob.commit.short_id,
-      dateTime: CdThroughputCalculator.normalizeTime(gitlabJob.finished_at),
+      dateTime: TimeUtil.normalizeTime(gitlabJob.finished_at),
       result: gitlabJob.status,
       jobName: gitlabJob.name,
       url: gitlabJob.web_url,
@@ -84,8 +84,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const pipelinesPerRef = await Promise.all(targetRefs.map(async  (refName) => {
       return <any[]><unknown>this.api.Pipelines.all(this.projectId, {
         ref: refName,
-        updated_after: CdThroughputCalculator.gitlabDateString(query.since),
-        updated_before: CdThroughputCalculator.gitlabDateString(query.until)
+        updated_after: TimeUtil.gitlabApiDateString(query.since),
+        updated_before: TimeUtil.gitlabApiDateString(query.until)
       });
     }));
     const pipelines = _.flatten(pipelinesPerRef);
@@ -117,7 +117,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     return {
       eventType: "change",
       revision: gitlabCommit.short_id,
-      dateTime: CdThroughputCalculator.normalizeTime(gitlabCommit.created_at),
+      dateTime: TimeUtil.normalizeTime(gitlabCommit.created_at),
       isMergeCommit: isMergeCommit
     };
   }
@@ -160,8 +160,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const branchName = branch.name;
     const commits = await <any[]><unknown>this.api.Commits.all(this.projectId, {
       refName: branchName,
-      since: CdThroughputCalculator.gitlabDateString(query.since),
-      until: CdThroughputCalculator.gitlabDateString(query.until),
+      since: TimeUtil.gitlabApiDateString(query.since),
+      until: TimeUtil.gitlabApiDateString(query.until),
       all: true
     });
     return _.chain(commits)
@@ -172,12 +172,17 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       .value();
   }
 
-  private async getAllPipelines(since: moment.Moment, until: moment.Moment): Promise<any[]> {
+  private async getAllPipelines(since: moment.Moment, until: moment.Moment, branches: string[]): Promise<any[]> {
 
-    const pipelineRuns = await <any[]><unknown>this.api.Pipelines.all(this.projectId, {
-        updated_after: CdThroughputCalculator.gitlabDateString(since),
-        updated_before: CdThroughputCalculator.gitlabDateString(until)
+    const pipelineRunsPerBranch = await Promise.all(branches.map(async (branchName) => {
+      return await <any[]><unknown>this.api.Pipelines.all(this.projectId, {
+        updated_after: TimeUtil.gitlabApiDateString(since),
+        updated_before: TimeUtil.gitlabApiDateString(until),
+        ref: branchName
       });
+    }));
+
+    const pipelineRuns = _.flatten(pipelineRunsPerBranch);
     
     console.log(`Got ${chalk.cyanBright(pipelineRuns.length)} pipeline runs`);
     return pipelineRuns;
@@ -190,7 +195,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       stageName: gitlabJobRun.stage,
       result: gitlabJobRun.status,
       ref: gitlabJobRun.ref,
-      dateTime: CdThroughputCalculator.normalizeTime(gitlabJobRun.finished_at)
+      dateTime: TimeUtil.normalizeTime(gitlabJobRun.finished_at)
     };
   }
 
@@ -205,14 +210,14 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       id: gitlabPipelineRun.id, 
       pipelineName: this.constructPipelineName(jobRuns),
       result: gitlabPipelineRun.status,
-      dateTime: CdThroughputCalculator.normalizeTime(gitlabPipelineRun.updated_at),
+      dateTime: TimeUtil.normalizeTime(gitlabPipelineRun.updated_at),
       jobs: jobRuns
     };
   }
 
   public async loadPipelines(query: CdStabilityQuery): Promise<CdPipelineRun[]> {
 
-    const pipelineRuns = await this.getAllPipelines(query.since, query.until);
+    const pipelineRuns = await this.getAllPipelines(query.since, query.until, query.branches);
     
     const allPipelineRuns: CdPipelineRun[] = await RequestHelper.executeInChunks(pipelineRuns, async (p: any) => {
       

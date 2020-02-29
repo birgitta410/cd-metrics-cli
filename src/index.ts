@@ -40,6 +40,15 @@ const withReleaseBranchOption = (yargs: any) => {
   });
 };
 
+const withBranchesOption = (yargs: any) => {
+  return yargs.option("branches", {
+    alias: "b",
+    type: "array",
+    default: ["master"],
+    description: "List of branches to get pipeline runs from"
+  });
+};
+
 const withReleaseTagsOption = (yargs: any) => {
   return yargs.option("releaseTags", {
     alias: "rt",
@@ -108,7 +117,7 @@ yargs
   })
   .command("stability", "calculate failure rate", (yargs) => {
     withProjectIdOption(yargs);
-    withReleaseBranchOption(yargs);
+    withBranchesOption(yargs);
     withGitlabOptions(yargs);
     withDateRangeOptions(yargs);
   }, async (argv: any) => {
@@ -121,7 +130,7 @@ yargs
 
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
     const stabilityCalculator = new CdStabilityCalculator(gitlabClient);
-    await stabilityCalculator.printFailureRates(argv.releaseBranch, since, until);
+    await stabilityCalculator.printFailureRates(argv.branches, since, until);
     
   })
   .argv

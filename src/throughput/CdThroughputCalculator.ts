@@ -9,21 +9,11 @@ import {
 } from "./Model";
 import { CdChangeService } from './CdChangeService';
 import { Printer } from '../Printer';
+import { TimeUtil } from '../TimeUtil';
 
 
 export class CdThroughputCalculator {
-  public static normalizeTime(time: string): string {
-    return moment(time).format("YYYY-MM-DD HH:mm:ss");
-  }
-
-  public static normalizedNow(): string {
-    return moment().format("YYYY-MM-DD HH:mm:ss");
-  }
-
-  public static gitlabDateString(date: moment.Moment): string {
-    return date.format("YYYY-MM-DDT00:00:00.000+00:00");
-  }
-
+  
   constructor(
     private changeService: CdChangeService,
     private deploymentReader: CdDeploymentReader
@@ -106,8 +96,8 @@ export class CdThroughputCalculator {
     until: moment.Moment
   ): Promise<any> {
     const gitlabQuery = {
-      since: moment(since),
-      until: moment(until),
+      since: since,
+      until: until,
       branch: releaseBranch,
       tags: releaseTags,
       prodDeploymentJobNames: deploymentJobs
@@ -123,9 +113,9 @@ export class CdThroughputCalculator {
         JSON.stringify(gitlabQuery.prodDeploymentJobNames)
       )} as production deployments.
       Timeline ${chalk.cyanBright(
-        CdThroughputCalculator.gitlabDateString(gitlabQuery.since)
+        TimeUtil.gitlabApiDateString(gitlabQuery.since)
       )} - ${chalk.cyanBright(
-      CdThroughputCalculator.gitlabDateString(gitlabQuery.until)
+      TimeUtil.gitlabApiDateString(gitlabQuery.until)
     )}
       `);
 
