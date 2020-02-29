@@ -14,6 +14,36 @@ export class GitlabConfig {
   constructor(public url: string, public projectId: number) {}
 }
 
+export class GitlabDataMapper {
+  public static toCdJobRun(gitlabJobRun:any): CdJobRun {
+    return {
+      id: gitlabJobRun.id,
+      jobName: gitlabJobRun.name,
+      stageName: gitlabJobRun.stage,
+      result: gitlabJobRun.status,
+      ref: gitlabJobRun.ref,
+      dateTime: TimeUtil.normalizeTime(gitlabJobRun.finished_at)
+    };
+  }
+
+  private static constructPipelineName(jobRuns: CdJobRun[]) {
+    // Gitlab does not have a concept of names for pipelines, but this is useful/necessary to group pipelines for the MTTR
+    const stageNames = _.uniq(jobRuns.map(job => {return job.stageName;}));
+    return `${jobRuns.length > 0 ? `${jobRuns[0].ref}>>` : ``}${stageNames.join(":")}`;
+  }
+
+  public static toCdPipelineRun(gitlabPipelineRun:any, jobRuns: CdJobRun[]): CdPipelineRun {
+    return {
+      id: gitlabPipelineRun.id, 
+      pipelineName: GitlabDataMapper.constructPipelineName(jobRuns),
+      result: gitlabPipelineRun.status,
+      dateTime: TimeUtil.normalizeTime(gitlabPipelineRun.updated_at),
+      jobs: jobRuns
+    };
+  }
+  
+}
+
 export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipelineReader {
   
   api: Gitlab;
@@ -181,38 +211,11 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
         ref: branchName
       });
     }));
-
+    
     const pipelineRuns = _.flatten(pipelineRunsPerBranch);
     
     console.log(`Got ${chalk.cyanBright(pipelineRuns.length)} pipeline runs`);
     return pipelineRuns;
-  }
-
-  private toCdJobRun(gitlabJobRun:any): CdJobRun {
-    return {
-      id: gitlabJobRun.id,
-      jobName: gitlabJobRun.name,
-      stageName: gitlabJobRun.stage,
-      result: gitlabJobRun.status,
-      ref: gitlabJobRun.ref,
-      dateTime: TimeUtil.normalizeTime(gitlabJobRun.finished_at)
-    };
-  }
-
-  private constructPipelineName(jobRuns: CdJobRun[]) {
-    // Gitlab does not have a concept of names for pipelines, but this is useful/necessary to group pipelines for the MTTR
-    const stageNames = _.uniq(jobRuns.map(job => {return job.stageName;}));
-    return `${jobRuns.length > 0 ? `${jobRuns[0].ref}>>` : ``}${stageNames.join(":")}`;
-  }
-
-  private toCdPipelineRun(gitlabPipelineRun:any, jobRuns: CdJobRun[]): CdPipelineRun {
-    return {
-      id: gitlabPipelineRun.id, 
-      pipelineName: this.constructPipelineName(jobRuns),
-      result: gitlabPipelineRun.status,
-      dateTime: TimeUtil.normalizeTime(gitlabPipelineRun.updated_at),
-      jobs: jobRuns
-    };
   }
 
   public async loadPipelines(query: CdStabilityQuery): Promise<CdPipelineRun[]> {
@@ -222,8 +225,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const allPipelineRuns: CdPipelineRun[] = await RequestHelper.executeInChunks(pipelineRuns, async (p: any) => {
       
       const jobsInPipelineRun = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
-      const jobRuns = jobsInPipelineRun.map(this.toCdJobRun);
-      return this.toCdPipelineRun(p, jobRuns);
+      const jobRuns = jobsInPipelineRun.map(GitlabDataMapper.toCdJobRun);
+      return GitlabDataMapper.toCdPipelineRun(p, jobRuns);
     });
     
     return allPipelineRuns;
