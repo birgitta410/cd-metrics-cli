@@ -103,7 +103,7 @@ yargs
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
     const changeService = new CdChangeService(gitlabClient);
     const writer = new CdEventsWriter(changeService, gitlabClient);
-    await writer.listChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
+    await writer.printChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
     
   })
   .command("stability", "calculate failure rate", (yargs) => {
@@ -121,7 +121,7 @@ yargs
 
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
     const stabilityCalculator = new CdStabilityCalculator(gitlabClient);
-    await stabilityCalculator.calculateFailureRate(argv.releaseBranch, since, until);
+    await stabilityCalculator.printFailureRates(argv.releaseBranch, since, until);
     
   })
   .argv

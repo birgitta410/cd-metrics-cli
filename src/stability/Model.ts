@@ -26,15 +26,7 @@ export interface CdPipelineRun extends CdPipelineComponent {
     /**
      * Jobs that ran as part of this pipeline run
      */
-    jobs: CdJobRun[],
-    metrics?: {
-        failure?: number,
-        jobs?: {
-            [jobName: string]: {
-                failure: number
-            }
-        }
-    };
+    jobs: CdJobRun[]
 }
 
 export interface CdFailureRate {

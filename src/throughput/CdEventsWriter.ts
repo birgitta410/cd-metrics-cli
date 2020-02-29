@@ -97,7 +97,7 @@ export class CdEventsWriter {
     }
   }
 
-  public async listChangesAndDeployments(
+  public async printChangesAndDeployments(
     projectId: number,
     releaseBranch: string,
     releaseTags: string,
