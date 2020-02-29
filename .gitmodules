@@ -1,0 +1,3 @@
+[submodule "tests/test-repo"]
+	path = tests/test-repo
+	url = git@github.com:birgitta410/cd-metrics-cli-test-repo.git

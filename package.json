@@ -8,12 +8,14 @@
   },
   "dependencies": {
     "@types/lodash": "^4.14.149",
+    "@types/nodegit": "^0.26.1",
     "@types/prompts": "^2.0.3",
     "axios": "^0.19.2",
     "chalk": "^3.0.0",
     "gitlab": "^14.2.2",
     "lodash": "^4.17.15",
     "moment": "^2.24.0",
+    "nodegit": "^0.26.4",
     "prompts": "^2.3.0",
     "ts-node": "^8.5.4",
     "yargs": "^15.1.0"
