@@ -1,5 +1,6 @@
 
 import * as _ from "lodash";
+import moment from "moment";
 import chalk from "chalk";
 
 import { Gitlab } from "gitlab";
@@ -171,6 +172,17 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       .value();
   }
 
+  private async getAllPipelines(since: moment.Moment, until: moment.Moment): Promise<any[]> {
+
+    const pipelines = await <any[]><unknown>this.api.Pipelines.all(this.projectId, {
+        updated_after: CdEventsWriter.gitlabDateString(since),
+        updated_before: CdEventsWriter.gitlabDateString(until)
+      });
+    
+    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs`);
+    return pipelines;
+  }
+
   private toCdJob(gitlabJob:any): CdJob {
     return {
       id: gitlabJob.id,
@@ -182,12 +194,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
 
   public async loadPipelines(query: CdStabilityQuery): Promise<CdPipeline[]> {
 
-    const pipelines = await this.getPipelinesForReferences({
-      since: query.since,
-      until: query.until,
-      branch: query.branch,
-      prodDeploymentJobNames: []
-    });
+    const pipelines = await this.getAllPipelines(query.since, query.until);
     
     const allPipelines: CdPipeline[] = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
       const cdPipeline: CdPipeline = {
