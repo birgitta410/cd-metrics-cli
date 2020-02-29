@@ -19,6 +19,13 @@ export interface CdJobRun extends CdPipelineComponent {
 }
 
 export interface CdPipelineRun extends CdPipelineComponent {
+    /**
+     * A name that can identify a set of runs as runs of the same pipeline
+     */
+    pipelineName: string,
+    /**
+     * Jobs that ran as part of this pipeline run
+     */
     jobs: CdJobRun[],
     metrics?: {
         failure?: number,

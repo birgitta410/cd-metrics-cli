@@ -278,8 +278,10 @@ describe("GitlabClient", () => {
       
       const job1: any = someGitlabJob();
       job1.name = "a-job";
+      job1.stage = "build";
       const job2: any = someGitlabJob();
       job2.name = "some-job";
+      job2.stage = "test";
       pipelinesApiMock.showJobs.mockResolvedValue([
         job1, job2
       ]);
@@ -294,6 +296,7 @@ describe("GitlabClient", () => {
       const actualPipelineRuns = await createApi().loadPipelines(query);
 
       expect(actualPipelineRuns.length).toBe(2);
+      expect(actualPipelineRuns[0].pipelineName).toBe("build:test");
       expect(pipelinesApiMock.all).toHaveBeenCalled();
       expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(2);
 
