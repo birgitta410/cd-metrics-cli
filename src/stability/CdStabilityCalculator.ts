@@ -1,4 +1,4 @@
-import { CdPipelineReader, CdPipeline, CdJob, CdFailureRate, CdPipelineComponent } from "./Model";
+import { CdPipelineReader, CdPipelineRun, CdJobRun, CdFailureRate, CdPipelineComponent } from "./Model";
 import moment from "moment";
 import chalk from "chalk";
 import * as _ from "lodash";
@@ -44,12 +44,12 @@ export class CdStabilityCalculator {
     }
   }
 
-  private getFailureRateByJobs(jobs: CdJob[]): CdFailureRate[] {
-    const jobNames = _.uniq(jobs.map(job => job.name));
+  private getFailureRateByJobs(jobs: CdJobRun[]): CdFailureRate[] {
+    const jobNames = _.uniq(jobs.map(job => job.jobName));
     const result: CdFailureRate[] = [];
     jobNames.forEach(jobName => {
-        const jobsWithName = jobs.filter(job => { return job.name === jobName; });
-        const jobKey = `${jobsWithName[0].stage}::${jobName}`;
+        const jobsWithName = jobs.filter(job => { return job.jobName === jobName; });
+        const jobKey = `${jobsWithName[0].stageName}::${jobName}`;
         const failureRate = this.getFailureRateFor(jobsWithName);
         failureRate.name = jobKey;
         result.push(failureRate);
@@ -81,7 +81,6 @@ export class CdStabilityCalculator {
     console.log(`Got ${chalk.cyanBright(pipelines.length)} pipelines with ${chalk.cyanBright(allJobs.length)} jobs`);
 
     // PIPELINE STATS
-    
     const failureByPipeline = this.getFailureRateFor(pipelines);
     console.log(`Failure rate of pipelines is ${CdStabilityCalculator.colorFn(failureByPipeline.failureRate)(`${failureByPipeline.failureRate}%`)}`
         +` (${failureByPipeline.numberOfFailed}/${failureByPipeline.numberOfFailed+failureByPipeline.numberOfSuccess})`);
@@ -104,16 +103,12 @@ export class CdStabilityCalculator {
             return job.result === "failed";
           })
           .map(job => {
-            return job.name;
+            return job.jobName;
           });
         return `${pipeline.id}\t${failures}\t${pipeline.result}\t${pipeline.dateTime}`;
       });
     await Printer.print(lines, "Print list of pipeline outcomes?");
 
-    // const lines = _.orderBy(allJobs, "dateTime").map(job => {
-    //     return `${job.stage}\t${job.name}\t${job.result}\t${job.dateTime}`;
-    // });
-    // await Printer.print(lines, "Print list of job outcomes?");
 
   }
 }

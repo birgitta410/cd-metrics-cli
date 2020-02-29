@@ -8,7 +8,7 @@ import { Gitlab } from "gitlab";
 import { RequestHelper } from "../RequestHelper";
 import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "../throughput/Model";
 import { CdEventsWriter } from "../throughput/CdEventsWriter";
-import { CdPipelineReader, CdPipeline, CdJob, CdStabilityQuery } from '@/stability/Model';
+import { CdPipelineReader, CdPipelineRun, CdJobRun, CdStabilityQuery } from '@/stability/Model';
 
 export class GitlabConfig {
   constructor(public url: string, public projectId: number) {}
@@ -174,42 +174,42 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
 
   private async getAllPipelines(since: moment.Moment, until: moment.Moment): Promise<any[]> {
 
-    const pipelines = await <any[]><unknown>this.api.Pipelines.all(this.projectId, {
+    const pipelineRuns = await <any[]><unknown>this.api.Pipelines.all(this.projectId, {
         updated_after: CdEventsWriter.gitlabDateString(since),
         updated_before: CdEventsWriter.gitlabDateString(until)
       });
     
-    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs`);
-    return pipelines;
+    console.log(`Got ${chalk.cyanBright(pipelineRuns.length)} pipeline runs`);
+    return pipelineRuns;
   }
 
-  private toCdJob(gitlabJob:any): CdJob {
+  private toCdJobRun(gitlabJobRun:any): CdJobRun {
     return {
-      id: gitlabJob.id,
-      name: gitlabJob.name,
-      stage: gitlabJob.stage,
-      result: gitlabJob.status,
-      dateTime: CdEventsWriter.normalizeTime(gitlabJob.finished_at)
+      id: gitlabJobRun.id,
+      jobName: gitlabJobRun.name,
+      stageName: gitlabJobRun.stage,
+      result: gitlabJobRun.status,
+      dateTime: CdEventsWriter.normalizeTime(gitlabJobRun.finished_at)
     };
   }
 
-  public async loadPipelines(query: CdStabilityQuery): Promise<CdPipeline[]> {
+  public async loadPipelines(query: CdStabilityQuery): Promise<CdPipelineRun[]> {
 
-    const pipelines = await this.getAllPipelines(query.since, query.until);
+    const pipelineRuns = await this.getAllPipelines(query.since, query.until);
     
-    const allPipelines: CdPipeline[] = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
+    const allPipelineRuns: CdPipelineRun[] = await RequestHelper.executeInChunks(pipelineRuns, async (p: any) => {
       
-      const jobsInPipeline = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
-      const cdJobs = jobsInPipeline.map(this.toCdJob);
+      const jobsInPipelineRun = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
+      const jobRuns = jobsInPipelineRun.map(this.toCdJobRun);
       return {
         id: p.id, 
         result: p.status,
         dateTime: CdEventsWriter.normalizeTime(p.updated_at),
-        jobs: cdJobs
+        jobs: jobRuns
       };
     });
     
-    return allPipelines;
+    return allPipelineRuns;
 
   }
 

@@ -13,13 +13,13 @@ export interface CdPipelineComponent {
     dateTime: string
 }
 
-export interface CdJob extends CdPipelineComponent {
-    name: string,
-    stage: string
+export interface CdJobRun extends CdPipelineComponent {
+    jobName: string,
+    stageName: string
 }
 
-export interface CdPipeline extends CdPipelineComponent {
-    jobs: CdJob[],
+export interface CdPipelineRun extends CdPipelineComponent {
+    jobs: CdJobRun[],
     metrics?: {
         failure?: number,
         jobs?: {
@@ -38,5 +38,5 @@ export interface CdFailureRate {
 }
 
 export interface CdPipelineReader {
-    loadPipelines(query: CdStabilityQuery): Promise<CdPipeline[]>;
+    loadPipelines(query: CdStabilityQuery): Promise<CdPipelineRun[]>;
 }
