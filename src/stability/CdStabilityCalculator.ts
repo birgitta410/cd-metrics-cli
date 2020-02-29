@@ -1,12 +1,13 @@
-import { CdPipelineReader, CdPipeline, CdJob } from "./Model";
+import { CdPipelineReader, CdPipeline, CdJob, CdFailureRate } from "./Model";
 import moment from "moment";
+import chalk from "chalk";
 import * as _ from "lodash";
 
 export class CdStabilityCalculator {
   constructor(private pipelineReader: CdPipelineReader) {}
 
 
-  private getFailureRateFor(jobs: CdJob[]): number {
+  private getFailureRateFor(jobs: CdJob[]): CdFailureRate {
     const numberOfFailed = jobs.filter(job => {
         return job.result === "failed";
     }).length;
@@ -15,9 +16,17 @@ export class CdStabilityCalculator {
     }).length;
 
     if(numberOfSuccess === 0 && numberOfFailed === 0) {
-        return 0;
+        return {
+            failureRate: 0,
+            numberOfSuccess: 0,
+            numberOfFailed: 0
+        };
     } else {
-        return _.round(numberOfFailed / (numberOfFailed + numberOfSuccess) * 100, 2);
+        return {
+            failureRate: _.round(numberOfFailed / (numberOfFailed + numberOfSuccess) * 100, 2),
+            numberOfSuccess: numberOfSuccess,
+            numberOfFailed: numberOfFailed
+        };
     }
   }
 
@@ -29,19 +38,18 @@ export class CdStabilityCalculator {
     );
 
     pipeline.metrics = pipeline.metrics || {};
-    pipeline.metrics.failure = this.getFailureRateFor(allJobs);
-    console.log(`Failure rate of ${pipeline.id}: ${pipeline.metrics.failure}`);
+    pipeline.metrics.failure = this.getFailureRateFor(allJobs).failureRate;
   }
 
-  private getFailureRateByJobs(jobs: CdJob[]): { [jobName: string ]: number[]} {
+  private getFailureRateByJobs(jobs: CdJob[]): CdFailureRate[] {
     const jobNames = _.uniq(jobs.map(job => job.name));
-    const result: { [jobName: string ]: number[]} = {};
+    const result: CdFailureRate[] = [];
     jobNames.forEach(jobName => {
         const jobsWithName = jobs.filter(job => { return job.name === jobName; });
-        const jobKey = `${jobsWithName[0].stage}:${jobName}`;
-        result[jobKey] = result[jobKey] || [];
+        const jobKey = `${jobsWithName[0].stage}::${jobName}`;
         const failureRate = this.getFailureRateFor(jobsWithName);
-        result[jobKey].push(failureRate)
+        failureRate.name = jobKey;
+        result.push(failureRate);
     });
     return result;
   }
@@ -58,11 +66,6 @@ export class CdStabilityCalculator {
     };
 
     const pipelines = await this.pipelineReader.loadPipelines(query);
-    pipelines.forEach(pipeline => this.addFailureRateToPipeline(pipeline));
-    
-    const allMetrics = pipelines.map(p => p.metrics);
-    const average = _.round(_.meanBy(allMetrics, "failure"), 2);
-
     const allJobs = _.chain(pipelines)
         .map(pipeline => {
             const stageNames = _.keys(pipeline.stages);
@@ -73,15 +76,31 @@ export class CdStabilityCalculator {
         .flatten()
         .flatten()
         .value();
+    console.log(`Got ${pipelines.length} pipelines with ${allJobs.length} jobs`);
+    
+    pipelines.forEach(pipeline => this.addFailureRateToPipeline(pipeline));
+    
+    const allMetrics = pipelines.map(p => p.metrics);
+    const average = _.round(_.meanBy(allMetrics, "failure"), 2);
 
     const jobFailureRates = this.getFailureRateByJobs(allJobs);
+    
+    console.log(`Average failure rate is ${chalk.cyanBright(average)}`);
 
-    console.log(`Average failure rate is ${average}`);
-
-    _.keys(jobFailureRates).forEach(jobName => {
-        console.log(`Job ${jobName}: ${jobFailureRates[jobName]}`);
+    const COLOR_BAD = chalk.redBright;
+    const COLOR_OK = chalk.yellowBright;
+    const COLOR_PERFECT = chalk.greenBright;
+    _.orderBy(jobFailureRates, "failureRate", "desc").forEach(failureRate => {
+        let colorFn = COLOR_OK;
+        if(failureRate.failureRate >= 50) {
+            colorFn = COLOR_BAD;
+        } else if (failureRate.failureRate <=5) {
+            colorFn = COLOR_PERFECT;
+        }
+        console.log(`${colorFn(failureRate.failureRate)} `
+            +`(${failureRate.numberOfFailed}/${failureRate.numberOfSuccess + failureRate.numberOfFailed})`
+            +`\t\t${failureRate.name}`);
     });
-
 
   }
 }

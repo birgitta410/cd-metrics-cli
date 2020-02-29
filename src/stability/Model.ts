@@ -31,6 +31,13 @@ export interface CdPipeline extends CdPipelineComponent {
     };
 }
 
+export interface CdFailureRate {
+    failureRate: number,
+    numberOfSuccess: number,
+    numberOfFailed: number,
+    name?: string
+}
+
 export interface CdPipelineReader {
     loadPipelines(query: CdStabilityQuery): Promise<CdPipeline[]>;
 }
