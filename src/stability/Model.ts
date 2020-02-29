@@ -1,11 +1,6 @@
 
 import moment from "moment";
 
-export interface CdStabilityQuery {
-    since: moment.Moment;
-    until: moment.Moment;
-    branches: string[];
-  }
 
 export interface CdPipelineComponent {
     id: string,
@@ -44,6 +39,25 @@ export interface CdMttr {
     pipelineName: string
 }
 
+export interface CdStabilityQuery {
+    /**
+     * Start date of the time frame to look for data
+     */
+    since: moment.Moment;
+    /**
+     * End date of the time frame to look for data
+     */
+    until: moment.Moment;
+    /**
+     * List of branches to get pipeline runs for
+     * (e.g. ["master"])
+     */
+    branches: string[];
+}
+
 export interface CdPipelineReader {
+    /**
+     * Should return all pipeline runs in the given time period
+     */
     loadPipelines(query: CdStabilityQuery): Promise<CdPipelineRun[]>;
 }
