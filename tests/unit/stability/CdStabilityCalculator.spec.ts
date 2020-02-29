@@ -145,6 +145,30 @@ describe("CdStabilityData", () => {
       
     });
 
+    test("should add restore time to each (first) failed pipelineRun", async () => {
+    
+      const somePipelineName = "build::test::deploy";
+
+      const runSeries = pipelineRunSeries(
+        ["failed", "failed", "success", // 20 mins 
+        "success",
+        "failed", "success",            // 10 mins
+        "failed", "failed", "success"], // 20 mins
+        10,
+      somePipelineName);
+      const data = new CdStabilityData(runSeries);
+      expect(data.pipelines[0].timeToRestore!.minutes()).toBe(20);
+      expect(data.pipelines[1].timeToRestore).toBeUndefined();
+      expect(data.pipelines[4].timeToRestore!.minutes()).toBe(10);
+      expect(data.pipelines[6].timeToRestore!.minutes()).toBe(20);
+
+      const actualMttr = data.pipelineMttrs[0].mttr;
+      expect(actualMttr!.days()).toBe(0);
+      expect(actualMttr!.hours()).toBe(0);
+      expect(actualMttr!.minutes()).toBe(16);
+      
+    });
+
     test("should not return an MTTR when there are only failures", async () => {
     
       const somePipelineName = "build::test::deploy";

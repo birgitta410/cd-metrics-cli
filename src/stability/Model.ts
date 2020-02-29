@@ -22,7 +22,8 @@ export interface CdPipelineRun extends CdPipelineComponent {
     /**
      * Jobs that ran as part of this pipeline run
      */
-    jobs: CdJobRun[]
+    jobs: CdJobRun[],
+    timeToRestore?: moment.Duration
 }
 
 export interface CdFailureRate {

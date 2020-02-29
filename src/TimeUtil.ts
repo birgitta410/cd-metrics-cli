@@ -13,4 +13,12 @@ export class TimeUtil {
   public static gitlabApiDateString(date: moment.Moment): string {
     return date.format("YYYY-MM-DDT00:00:00.000+00:00");
   }
+
+  public static durationToSpreadsheetString(duration: moment.Duration|undefined): string {
+    if(duration !== undefined) { 
+      return `${Math.round(duration.asHours())}:${duration.minutes()}`;
+    } else {
+      return "";
+    }
+  }
 }

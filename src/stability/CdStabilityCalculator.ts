@@ -11,7 +11,7 @@ export class CdStabilityData {
   public jobFailureRates: CdFailureRate[];
   public pipelineMttrs: CdMttr[];
 
-  constructor(private pipelines: CdPipelineRun[]) {
+  constructor(public pipelines: CdPipelineRun[]) {
     const relevantPipelines = pipelines.filter(p => {
       return p.result === "success" || p.result === "failed";
     });
@@ -99,6 +99,7 @@ export class CdStabilityData {
         } else if (p.result === "success") {
           const mttr: moment.Duration = moment.duration(moment(p.dateTime, "YYYY-MM-DD HH:mm:ss").diff(moment(currentFailure.dateTime, "YYYY-MM-DD HH:mm:ss")));
           restoreTimes.push(mttr);
+          currentFailure.timeToRestore = mttr;
           // reset
           currentFailure = undefined;
         }
@@ -185,7 +186,7 @@ Change failure rate
 #######################
 Mean time to restore
 #######################`));
-    const pipelineMttrs = _.orderBy(data.pipelineMttrs, "pipelineName");
+    const pipelineMttrs = _.orderBy(data.pipelineMttrs, "mttr", "desc");
     pipelineMttrs.forEach(mttr => {
       const mttrInfo = mttr.mttrComment ? `${mttr.mttrComment}` : `${mttr.numberOfRuns} run(s) considered`;
       console.log(`${mttr.mttr ? mttr.mttr!.humanize().padEnd(12) : `n/a`.padEnd(12)}`
@@ -205,7 +206,7 @@ Mean time to restore
           .map(job => {
             return job.jobName;
           });
-        return `${pipeline.id}\t${failures}\t${pipeline.result}\t${pipeline.dateTime}`;
+        return `${pipeline.id}\t${pipeline.pipelineName}\t${failures}\t${pipeline.result}\t${pipeline.dateTime}\t${TimeUtil.durationToSpreadsheetString(pipeline.timeToRestore)}`;
       });
     await Printer.print(lines, "Print list of pipeline outcomes?");
 
