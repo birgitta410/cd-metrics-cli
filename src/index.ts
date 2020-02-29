@@ -31,7 +31,15 @@ yargs
       .option("releaseBranch", {
         alias: "rb",
         default: "master",
-        description: "Name of the branch that releases to production"
+        description: "Name of the branch that releases to production;"
+          + " no regular expressions, but ^ and $ can be used to indicate start or end of a partial pattern "
+          +"(e.g. ^release will find branches starting with 'release')"
+      })
+      .option("releaseTags", {
+        alias: "rt",
+        description: "Search pattern for tags from which production is released - alternative to specifying a releaseBranch;"
+          + " no regular expressions, but ^ and $ can be used to indicate start or end of a partial pattern "
+          + "(e.g. ^release will find tags starting with 'release')"
       })
       .option("gitlabUrl", {
         description: "Base url of the Gitlab instance; falls back on GITLAB_URL env var if empty",
@@ -69,7 +77,7 @@ yargs
 
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken)
     const writer = new CdEventsWriter(gitlabClient, gitlabClient);
-    await writer.listChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.deploymentJobs, since, until);
+    await writer.listChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
     
   })
   .argv

@@ -31,9 +31,41 @@ export class CdEventsWriter {
     private deploymentReader: CdDeploymentReader
   ) {}
 
-  public async getChangesAndDeploymentsTimeline(
-    query: CdEventsQuery
-  ): Promise<any[]> {
+  private async getTimelineForReleaseReferences(query: CdEventsQuery) {
+    const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
+
+    console.log(
+      `${chalk.cyanBright(
+        `>> Determined ${changeList.length} change events\n`
+      )}`
+    );
+
+    const deploymentList: CdEvent[] = await this.deploymentReader.loadProductionDeployments(query);
+    console.log(
+      `${chalk.cyanBright(
+        `>> Determined ${deploymentList.length} production deployment events\n`
+      )}`
+    );
+
+    const chronologicalChanges = _.sortBy(changeList, "dateTime");
+    const chronologicalDeployments = _.sortBy(deploymentList, "dateTime");
+
+    let result: CdEvent[] = [];
+    // TODO: Or, put all the changes and deployments for one ref into a list and sort that by time? And then "insert" that in the overall list?
+    chronologicalChanges.map(change => {
+      result.push(change);
+      if(change.ref) {
+        const deploymentsForRef = chronologicalDeployments.filter(deployment => {
+          return deployment.ref === change.ref;
+        });
+        result = result.concat(deploymentsForRef);
+      }
+    })
+
+    return result;
+  }
+
+  private async getChronologicalTimelineFromBranch(query: CdEventsQuery) {
     const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
 
     console.log(
@@ -55,9 +87,20 @@ export class CdEventsWriter {
       .value();
   }
 
+  public async getChangesAndDeploymentsTimeline(
+    query: CdEventsQuery
+  ): Promise<any[]> {
+    if(query.branch.startsWith("^") || query.tags) {
+      return this.getTimelineForReleaseReferences(query);
+    } else {
+      return this.getChronologicalTimelineFromBranch(query);
+    }
+  }
+
   public async listChangesAndDeployments(
     projectId: number,
     releaseBranch: string,
+    releaseTags: string,
     deploymentJobs: string[],
     since: moment.Moment,
     until: moment.Moment
@@ -66,14 +109,15 @@ export class CdEventsWriter {
       since: moment(since),
       until: moment(until),
       branch: releaseBranch,
+      tags: releaseTags,
       prodDeploymentJobNames: deploymentJobs
     };
 
     console.log(`Getting changes and deployments for project ${chalk.cyanBright(
       projectId
     )},
-      focusing on changes and pipelines on branch(es) ${chalk.cyanBright(
-        releaseBranch
+      focusing on changes and pipelines on branch(es)/tag(s) ${chalk.cyanBright(
+        gitlabQuery.tags || gitlabQuery.branch
       )},
       considering jobs named ${chalk.cyanBright(
         JSON.stringify(gitlabQuery.prodDeploymentJobNames)
@@ -105,7 +149,7 @@ export class CdEventsWriter {
     const output = eventsTimeLine.map(event => {
       return `${event.eventType}\t${event.revision}\t${
         event.dateTime
-      }\t${event.isMergeCommit || ""}\t${event.result || ""}`;
+      }\t${event.isMergeCommit || ""}\t${event.result || ""}\t${event.ref || ""}`;
     });
 
     if (listEventsUserPrompt.value === "yes") {
