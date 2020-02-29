@@ -1,8 +1,6 @@
 import moment = require("moment");
 import chalk = require("chalk");
-import fs = require("fs");
 import * as _ from "lodash";
-import prompts = require("prompts");
 
 import {
   CdDeploymentReader,
@@ -10,8 +8,8 @@ import {
   CdEvent
 } from "./Model";
 import { CdChangeService } from './CdChangeService';
+import { Printer } from '../Printer';
 
-const OUTPUT_FOLDER = "cd-metrics-cli-output";
 
 export class CdEventsWriter {
   public static normalizeTime(time: string): string {
@@ -135,19 +133,6 @@ export class CdEventsWriter {
       gitlabQuery
     );
 
-    const listEventsUserPrompt = await prompts({
-      type: "select",
-      name: "value",
-      message: "Print events?",
-      choices: [
-        { title: "Yes", value: "yes" },
-        { title: "No", value: "no" },
-        { title: "To file", value: "file" }
-      ],
-      max: 1,
-      hint: "- Space to select. Return to submit"
-    });
-
     const output = eventsTimeLine.map(event => {
       return `${event.eventType}\t${event.revision}\t${
         event.dateTime
@@ -156,19 +141,6 @@ export class CdEventsWriter {
 
     console.log(`Output number of lines: ${output.length}`);
 
-    if (listEventsUserPrompt.value === "yes") {
-      output.forEach(line => {
-        console.log(`${line}`);
-      });
-    } else if (listEventsUserPrompt.value === "file") {
-      const fileNamePrompt = await prompts({
-        type: "text",
-        name: "value",
-        message: "File name? (will be written to ./outputs)"
-      });
-      const filePath = `./${OUTPUT_FOLDER}/${fileNamePrompt.value}`;
-      console.log(`Writing output to file ${chalk.cyanBright(filePath)}`);
-      fs.writeFileSync(`${filePath}`, output.join("\n"));
-    }
+    await Printer.print(output);
   }
 }
