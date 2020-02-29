@@ -126,7 +126,7 @@ export class CdThroughputCalculator {
     const output = eventsTimeLine.map(event => {
       return `${event.eventType}\t${event.revision}\t${
         event.dateTime
-      }\t${event.isMergeCommit || ""}\t${event.result || ""}\t${event.ref || ""}`;
+      }\t${event.isMergeCommit || ""}\t${event.result || ""}`;
     });
 
     console.log(`Output number of lines: ${output.length}`);
