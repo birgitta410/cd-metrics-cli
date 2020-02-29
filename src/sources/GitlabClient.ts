@@ -7,12 +7,13 @@ import { Gitlab } from "gitlab";
 import { RequestHelper } from "../RequestHelper";
 import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "../throughput/Model";
 import { CdEventsWriter } from "../throughput/CdEventsWriter";
+import { CdPipelineReader, CdPipeline, CdJob, CdStabilityQuery } from '@/stability/Model';
 
 export class GitlabConfig {
   constructor(public url: string, public projectId: number) {}
 }
 
-export class GitlabClient implements CdChangeReader, CdDeploymentReader {
+export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipelineReader {
   
   api: Gitlab;
   config: GitlabConfig;
@@ -168,6 +169,43 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
         return this.commitToEvent(c);
       })
       .value();
+  }
+
+  private toCdJob(gitlabJob:any): CdJob {
+    return {
+      id: gitlabJob.id,
+      name: gitlabJob.name,
+      stage: gitlabJob.stage,
+      result: gitlabJob.status
+    };
+  }
+
+  public async loadPipelines(query: CdStabilityQuery): Promise<CdPipeline[]> {
+
+    const pipelines = await this.getPipelinesForReferences({
+      since: query.since,
+      until: query.until,
+      branch: query.branch,
+      prodDeploymentJobNames: []
+    });
+    
+    const allPipelines: CdPipeline[] = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
+      const cdPipeline: CdPipeline = {
+        id: p.id, 
+        result: p.status,
+        stages: {}
+      }
+      const jobsInPipeline = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
+      const cdJobs = jobsInPipeline.map(this.toCdJob);
+      const allStageNames = _.uniq(cdJobs.map(job => { return job.stage; }));
+      allStageNames.forEach(stageName => {
+        cdPipeline.stages[stageName] = cdJobs.filter(job => { return job.stage === stageName; });
+      });
+      return cdPipeline;
+    });
+    
+    return allPipelines;
+
   }
 
 }
