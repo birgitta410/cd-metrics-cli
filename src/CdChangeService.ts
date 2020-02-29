@@ -1,4 +1,4 @@
-import { CdChangeReader, CdEventsQuery, CdChangeEvent, CdChangeReference } from './Interfaces';
+import { CdChangeReader, CdEventsQuery, CdChangeEvent, CdChangeReference } from './Model';
 import _ from 'lodash';
 import chalk = require('chalk');
 

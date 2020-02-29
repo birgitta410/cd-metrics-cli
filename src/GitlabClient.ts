@@ -5,7 +5,7 @@ import chalk from "chalk";
 import { Gitlab } from "gitlab";
 
 import { RequestHelper } from "./RequestHelper";
-import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "./Interfaces";
+import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "./Model";
 import { CdEventsWriter } from "./CdEventsWriter";
 
 export class GitlabConfig {

@@ -8,7 +8,7 @@ import {
   CdDeploymentReader,
   CdEventsQuery,
   CdEvent
-} from "./Interfaces";
+} from "./Model";
 import { CdChangeService } from './CdChangeService';
 
 const OUTPUT_FOLDER = "cd-metrics-cli-output";

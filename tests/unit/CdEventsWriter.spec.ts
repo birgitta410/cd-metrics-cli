@@ -1,5 +1,5 @@
 import moment = require('moment');
-import { CdChangeReader, CdDeploymentReader, CdEventsQuery, CdDeploymentEvent, CdChangeEvent } from '../../src/Interfaces';
+import { CdChangeReader, CdDeploymentReader, CdEventsQuery, CdDeploymentEvent, CdChangeEvent } from '../../src/Model';
 import { CdEventsWriter } from '../../src/CdEventsWriter';
 
 class CdChangeServiceMock {
@@ -52,7 +52,7 @@ describe("CdEventsWriter", () => {
   }
 
   describe("getChangesAndDeploymentsTimeline", () => {
-    describe("for releasing from a branch", () => {
+    describe("for releasing from a specific branch", () => {
       test("should return a chronological timeline of changes and deployments", async () => {
         const deploymentEvent: any = someDeploymentEvent();
         deploymentEvent.name = "some-deployment-job";

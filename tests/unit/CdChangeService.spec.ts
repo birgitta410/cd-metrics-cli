@@ -1,15 +1,15 @@
 import moment = require('moment');
-import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '@/Interfaces';
+import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '@/Model';
 import { CdChangeService } from '@/CdChangeService';
 
 class CdChangeReaderMock implements CdChangeReader {
-  loadTags(tagsPattern: string): Promise<import("../../src/Interfaces").CdChangeReference[]> {
+  loadTags(tagsPattern: string): Promise<import("../../src/Model").CdChangeReference[]> {
     throw new Error("Method should be mocked.");
   }
-  loadBranches(branchPattern: string): Promise<import("../../src/Interfaces").CdChangeReference[]> {
+  loadBranches(branchPattern: string): Promise<import("../../src/Model").CdChangeReference[]> {
     throw new Error("Method should be mocked.");
   }
-  loadCommitsForReferences(query: CdEventsQuery, targetRefs: import("../../src/Interfaces").CdChangeReference[]): Promise<CdChangeEvent[]> {
+  loadCommitsForReferences(query: CdEventsQuery, targetRefs: import("../../src/Model").CdChangeReference[]): Promise<CdChangeEvent[]> {
     throw new Error("Method should be mocked.");
   }
 }

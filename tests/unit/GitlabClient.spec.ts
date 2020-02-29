@@ -2,7 +2,7 @@ import { Gitlab, Pipelines, Commits, Branches, Tags } from "gitlab";
 import { GitlabClient, GitlabConfig } from "../../src/GitlabClient";
 import moment = require('moment');
 import { CdEventsWriter } from '@/CdEventsWriter';
-import { CdChangeReference } from '@/Interfaces';
+import { CdChangeReference } from '@/Model';
 
 jest.mock("gitlab");
 
