@@ -5,11 +5,11 @@ import * as _ from "lodash";
 import prompts = require("prompts");
 
 import {
-  CdChangeReader,
   CdDeploymentReader,
   CdEventsQuery,
   CdEvent
 } from "./Interfaces";
+import { CdChangeService } from './CdChangeService';
 
 const OUTPUT_FOLDER = "cd-metrics-cli-output";
 
@@ -27,7 +27,7 @@ export class CdEventsWriter {
   }
 
   constructor(
-    private changeReader: CdChangeReader,
+    private changeService: CdChangeService,
     private deploymentReader: CdDeploymentReader
   ) {}
 
@@ -78,7 +78,7 @@ export class CdEventsWriter {
   public async getChangesAndDeploymentsTimeline(
     query: CdEventsQuery
   ): Promise<any[]> {
-    const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
+    const changeList: CdEvent[] = await this.changeService.loadChanges(query);
 
     console.log(
       `${chalk.cyanBright(

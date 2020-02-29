@@ -2,6 +2,7 @@ import { Gitlab, Pipelines, Commits, Branches, Tags } from "gitlab";
 import { GitlabClient, GitlabConfig } from "../../src/GitlabClient";
 import moment = require('moment');
 import { CdEventsWriter } from '@/CdEventsWriter';
+import { CdChangeReference } from '@/Interfaces';
 
 jest.mock("gitlab");
 
@@ -52,7 +53,7 @@ describe("GitlabClient", () => {
     return new GitlabClient(apiMock, new GitlabConfig("someUrl", someProjectId));
   }
 
-  function someJob() : any {
+  function someGitlabJob() : any {
     return {
       "id": 1487964,
       "status": "success",
@@ -70,7 +71,7 @@ describe("GitlabClient", () => {
     };
   }
 
-  function somePipeline() : any {
+  function someGitlabPipeline() : any {
     return {
       "id": 419002,
       "sha": "35aed3b9a",
@@ -80,7 +81,7 @@ describe("GitlabClient", () => {
     };
   }
 
-  function someCommit() : any {
+  function someGitlabCommit() : any {
     return {
       "id": "4b4e5264edeeb45d1c4f7b45e879258fdd5d5781",
       "short_id": "4b4e5264",
@@ -93,7 +94,7 @@ describe("GitlabClient", () => {
     };
   }
 
-  function someBranch() : any {
+  function someGitlabBranch() : any {
     return {
       "name": "release/7.41.0",
       "commit": {
@@ -106,7 +107,7 @@ describe("GitlabClient", () => {
     };
   }
 
-  function someTag() : any {
+  function someGitlabTag() : any {
     return {
       "name": "4.5.0-1",
       "target": "6f9828be449adae6b6fb82626a96138b718c956b",
@@ -122,18 +123,35 @@ describe("GitlabClient", () => {
     };
   }
 
+  function toChangeReference(gitlabReference: any): CdChangeReference {
+    return {
+      name: gitlabReference.name,
+      commit: gitlabReference.commit ? gitlabReference.commit.short_id : undefined
+    };
+  }
+
+  function mockMasterBranch() {
+    const masterBranch = someGitlabBranch();
+    masterBranch.name = "master";
+    branchesApiMock.all.mockResolvedValue([
+      masterBranch
+    ]);
+  }
+
   describe("loadProductionDeployments", () => {
     test("should ask for pipelines on branch and load their respective deployment jobs", async () => {
-      const deploymentJob: any = someJob();
+      const deploymentJob: any = someGitlabJob();
       deploymentJob.name = "the-deployment-job";
-      const otherJob: any = someJob();
+      const otherJob: any = someGitlabJob();
       otherJob.name = "some-job";
       pipelinesApiMock.all.mockResolvedValue([
-        somePipeline(), somePipeline()
+        someGitlabPipeline(), someGitlabPipeline()
       ]);
       pipelinesApiMock.showJobs.mockResolvedValue([
         deploymentJob
       ]);
+
+      mockMasterBranch();
 
       const actualDeploymentJobs = await createApi().loadProductionDeployments({
         since: moment(),
@@ -155,20 +173,20 @@ describe("GitlabClient", () => {
     });
 
     test("should ask for pipelines on multiple branches if branch name is pattern", async () => {
-      const deploymentJob: any = someJob();
+      const deploymentJob: any = someGitlabJob();
       deploymentJob.name = "the-deployment-job";
-      const otherJob: any = someJob();
-      otherJob.name = "some-job";
+      deploymentJob.ref = "release/1.2";
+      
       pipelinesApiMock.all.mockResolvedValue([
-        somePipeline(), somePipeline()
+        someGitlabPipeline(), someGitlabPipeline()
       ]);
       pipelinesApiMock.showJobs.mockResolvedValue([
         deploymentJob
       ]);
 
-      const branch1 = someBranch();
+      const branch1 = someGitlabBranch();
       branch1.name = "release/1.2"
-      const branch2 = someBranch();
+      const branch2 = someGitlabBranch();
       branch2.name = "release/1.3"
       branchesApiMock.all.mockResolvedValue([
         branch1, branch2
@@ -182,28 +200,30 @@ describe("GitlabClient", () => {
       });
 
       expect(actualDeploymentJobs.length).toBe(4);
+      expect(actualDeploymentJobs[0].ref).toBe("release/1.2");
+
       expect(pipelinesApiMock.all).toHaveBeenCalledTimes(2);
       expect(branchesApiMock.all).toHaveBeenCalledWith(someProjectId, { search: "^release" });
 
     });
 
     test("should ask for pipelines on tags instead of branches, if tags were provided", async () => {
-      const tag1 = someTag();
+      const tag1 = someGitlabTag();
       tag1.name = "1.2.3"
-      const tag2 = someTag();
+      const tag2 = someGitlabTag();
       tag2.name = "1.2.4"
       
-      const deploymentJobTag1: any = someJob();
+      const deploymentJobTag1: any = someGitlabJob();
       deploymentJobTag1.name = "the-deployment-job";
       deploymentJobTag1.ref = tag1.name;
       
-      const deploymentJobTag2: any = someJob();
+      const deploymentJobTag2: any = someGitlabJob();
       deploymentJobTag2.name = deploymentJobTag1.name;
       deploymentJobTag2.ref = tag2.name;
       
       pipelinesApiMock.all
-        .mockImplementationOnce(() => Promise.resolve([somePipeline()]))
-        .mockImplementationOnce(() => Promise.resolve([somePipeline()]));
+        .mockImplementationOnce(() => Promise.resolve([someGitlabPipeline()]))
+        .mockImplementationOnce(() => Promise.resolve([someGitlabPipeline()]));
 
       pipelinesApiMock.showJobs
         .mockImplementationOnce(() => Promise.resolve([deploymentJobTag1]))
@@ -231,10 +251,12 @@ describe("GitlabClient", () => {
     });
 
     test("should not crash if no deployment jobs can be found", async () => {
-      const nonDeploymentJob: any = someJob();
+      const nonDeploymentJob: any = someGitlabJob();
       nonDeploymentJob.name = "some-job";
-      pipelinesApiMock.all.mockResolvedValue([somePipeline()]);
+      pipelinesApiMock.all.mockResolvedValue([someGitlabPipeline()]);
       pipelinesApiMock.showJobs.mockResolvedValue([nonDeploymentJob]);
+
+      mockMasterBranch();
 
       const events = await createApi().loadProductionDeployments({
         since: moment(),
@@ -247,19 +269,19 @@ describe("GitlabClient", () => {
     });
   });
 
-  describe("loadChanges", () => {
+  describe("loadCommitsForReferences", () => {
     test("should get all commits for the specified branch", async () => {
-      const commit = someCommit();
+      const commit = someGitlabCommit();
       commitsApiMock.all.mockResolvedValue([
         commit
       ]);
 
-      const actualCommits = await createApi().loadChanges({
+      const actualCommits = await createApi().loadCommitsForReferences({
         since: moment(),
         until: moment(),
         branch: "master",
         prodDeploymentJobNames: ["does-not-matter"]
-      });
+      }, [toChangeReference({ name: "master" })]);
 
       expect(actualCommits.length).toBe(1);
 
@@ -269,79 +291,13 @@ describe("GitlabClient", () => {
 
     });
 
-    test("should get unique commits for multiple branches if branch name is pattern", async () => {
-      const commit1 = someCommit();
-      commit1.short_id = "654321"
-      const commit2 = someCommit();
-      commit2.short_id = "123456"
-      
-      commitsApiMock.all
-        .mockImplementationOnce(() => Promise.resolve([commit1, commit2]))
-        .mockImplementationOnce(() => Promise.resolve([commit2]));
-
-      const branch1 = someBranch();
-      branch1.name = "release/1.2"
-      const branch2 = someBranch();
-      branch2.name = "release/1.3"
-      branchesApiMock.all.mockResolvedValue([
-        branch1, branch2
-      ]);
-
-      const actualCommits = await createApi().loadChanges({
-        since: moment(),
-        until: moment(),
-        branch: "^release",
-        prodDeploymentJobNames: ["does-not-matter"]
-      });
-
-      expect(actualCommits.length).toBe(2);
-
-    });
-
-    test("should add tag to change event if tags pattern is set", async () => {
-      const commit1 = someCommit();
-      commit1.short_id = "654321";
-      const commit2 = someCommit();
-      commit2.short_id = "123456";
-      
-      commitsApiMock.all
-        .mockImplementationOnce(() => Promise.resolve([commit1, commit2]))
-        .mockImplementationOnce(() => Promise.resolve([commit2]));
-
-      const tag1 = someTag();
-      tag1.name = "1.2";
-      tag1.commit = { short_id: commit1.short_id };
-      const tag2 = someTag();
-      tag2.name = "1.3";
-      tag2.commit = { short_id: commit2.short_id };
-      tagsApiMock.all.mockResolvedValue([
-        tag1, tag2
-      ]);
-
-      const actualCommits = await createApi().loadChanges({
-        since: moment(),
-        until: moment(),
-        branch: "master",
-        tags: "*",
-        prodDeploymentJobNames: ["does-not-matter"]
-      });
-
-      expect(actualCommits.length).toBe(2);
-
-      expect(actualCommits[0].ref).toBe("1.2");
-      expect(actualCommits[1].ref).toBe("1.3");
-
-      expect(tagsApiMock.all).toHaveBeenCalledWith(1111, { search: "*" })
-      expect(branchesApiMock.all).not.toHaveBeenCalled();
-
-    });
   });
 
   describe("findProdDeploymentJobs", () => {
     test("should return job with the specified filter name", () => {
-      const job1 = someJob();
+      const job1 = someGitlabJob();
       job1.name = "name1";
-      const job2 = someJob();
+      const job2 = someGitlabJob();
       job2.name = "name2";
       const jobs = [
         job2, job1
@@ -354,9 +310,9 @@ describe("GitlabClient", () => {
     });
 
     test("should return job with the first mentioned name, if there are multiple name matches", () => {
-      const job1 = someJob();
+      const job1 = someGitlabJob();
       job1.name = "name1";
-      const job2 = someJob();
+      const job2 = someGitlabJob();
       job2.name = "name2";
       const jobs = [
         job2, job1
@@ -369,10 +325,10 @@ describe("GitlabClient", () => {
     });
 
     test("should return the run that was created last, if there are multiple with the same name", () => {
-      const firstJobRun = someJob();
+      const firstJobRun = someGitlabJob();
       firstJobRun.name = "job-name";
       firstJobRun.created_at = "2019-11-08T17:12:24.655Z";
-      const laterJobRun = someJob();
+      const laterJobRun = someGitlabJob();
       laterJobRun.name = "job-name";
       laterJobRun.created_at = "2019-11-08T17:15:24.655Z";
       const jobs = [
@@ -387,7 +343,7 @@ describe("GitlabClient", () => {
 
     test("should ignore jobs that are not finished", () => {
       
-      const unfinishedJobRun = someJob();
+      const unfinishedJobRun = someGitlabJob();
       unfinishedJobRun.name = "job-name";
       unfinishedJobRun.finished_at = null;
       const jobs = [
@@ -401,11 +357,11 @@ describe("GitlabClient", () => {
 
     test("should ignore jobs among multiple candidates that are not finished", () => {
       
-      const unfinishedJobRun1 = someJob();
+      const unfinishedJobRun1 = someGitlabJob();
       unfinishedJobRun1.name = "job-name";
       unfinishedJobRun1.finished_at = null;
 
-      const unfinishedJobRun2 = someJob();
+      const unfinishedJobRun2 = someGitlabJob();
       unfinishedJobRun2.name = "job-name";
       unfinishedJobRun2.finished_at = null;
       const jobs = [

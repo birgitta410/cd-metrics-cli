@@ -25,8 +25,15 @@ export interface CdDeploymentEvent extends CdEvent {
   url?: string
 };
 
+export interface CdChangeReference {
+  name: string,
+  commit: string
+}
+
 export interface CdChangeReader {
-  loadChanges(query: CdEventsQuery): Promise<CdChangeEvent[]>;
+  loadTags(tagsPattern: string): Promise<CdChangeReference[]>;
+  loadBranches(branchPattern: string): Promise<CdChangeReference[]>;
+  loadCommitsForReferences(query: CdEventsQuery, targetRefs: CdChangeReference[]): Promise<CdChangeEvent[]>;
 }
 
 export interface CdDeploymentReader {

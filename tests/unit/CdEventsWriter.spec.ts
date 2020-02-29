@@ -2,7 +2,7 @@ import moment = require('moment');
 import { CdChangeReader, CdDeploymentReader, CdEventsQuery, CdDeploymentEvent, CdChangeEvent } from '../../src/Interfaces';
 import { CdEventsWriter } from '../../src/CdEventsWriter';
 
-class CdChangeReaderMock implements CdChangeReader {
+class CdChangeServiceMock {
   loadChanges(query: CdEventsQuery): Promise<any[]> {
     throw new Error("Method should be mocked.");
   }
@@ -15,13 +15,13 @@ class CdDeploymentReaderMock implements CdDeploymentReader {
 }
 
 describe("CdEventsWriter", () => {
-  let changeReaderMock: any = {};
+  let changeServiceMock: any = {};
   let deploymentReaderMock: any = {};
 
   function resetMocks() {
 
-    changeReaderMock = new CdChangeReaderMock();
-    changeReaderMock.loadChanges = jest.fn();
+    changeServiceMock = new CdChangeServiceMock();
+    changeServiceMock.loadChanges = jest.fn();
 
     deploymentReaderMock = new CdDeploymentReaderMock();
     deploymentReaderMock.loadProductionDeployments = jest.fn();
@@ -64,11 +64,11 @@ describe("CdEventsWriter", () => {
         deploymentReaderMock.loadProductionDeployments.mockResolvedValue([
           deploymentEvent
         ]);
-        changeReaderMock.loadChanges.mockResolvedValue([
+        changeServiceMock.loadChanges.mockResolvedValue([
           changeEvent
         ]);
 
-        const eventsWriter = new CdEventsWriter(changeReaderMock, deploymentReaderMock);
+        const eventsWriter = new CdEventsWriter(changeServiceMock, deploymentReaderMock);
         const events = await eventsWriter.getChangesAndDeploymentsTimeline({
           since: moment(),
           until: moment(),
@@ -111,11 +111,11 @@ describe("CdEventsWriter", () => {
         deploymentReaderMock.loadProductionDeployments.mockResolvedValue([
           deploymentEvent
         ]);
-        changeReaderMock.loadChanges.mockResolvedValue([
+        changeServiceMock.loadChanges.mockResolvedValue([
           changeEvent1, changeEvent2, changeEvent3Tagged, changeEvent4
         ]);
 
-        const eventsWriter = new CdEventsWriter(changeReaderMock, deploymentReaderMock);
+        const eventsWriter = new CdEventsWriter(changeServiceMock, deploymentReaderMock);
         const events = await eventsWriter.getChangesAndDeploymentsTimeline({
           since: moment(),
           until: moment(),
@@ -170,11 +170,11 @@ describe("CdEventsWriter", () => {
         deploymentReaderMock.loadProductionDeployments.mockResolvedValue([
           deploymentEvent, deploymentEvent2
         ]);
-        changeReaderMock.loadChanges.mockResolvedValue([
+        changeServiceMock.loadChanges.mockResolvedValue([
           changeEvent1, changeEvent2, changeEvent3OnBranch, changeEvent4OnBranch, changeEvent5
         ]);
 
-        const eventsWriter = new CdEventsWriter(changeReaderMock, deploymentReaderMock);
+        const eventsWriter = new CdEventsWriter(changeServiceMock, deploymentReaderMock);
         const events = await eventsWriter.getChangesAndDeploymentsTimeline({
           since: moment(),
           until: moment(),

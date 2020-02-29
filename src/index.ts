@@ -4,6 +4,7 @@ import moment = require("moment");
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./GitlabClient";
 import { CdEventsWriter } from './CdEventsWriter';
+import { CdChangeService } from './CdChangeService';
 
 const createGitlabClient = (projectId: number, host:string, token:string) => {
   const api = new Gitlab({
@@ -75,8 +76,9 @@ yargs
     const since = moment(argv.since);
     const until = argv.until === "today" ? moment() : moment(argv.until);
 
-    const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken)
-    const writer = new CdEventsWriter(gitlabClient, gitlabClient);
+    const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
+    const changeService = new CdChangeService(gitlabClient);
+    const writer = new CdEventsWriter(changeService, gitlabClient);
     await writer.listChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
     
   })
