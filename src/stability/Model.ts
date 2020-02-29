@@ -9,7 +9,8 @@ export interface CdStabilityQuery {
 
 export interface CdPipelineComponent {
     id: string,
-    result: string
+    result: string,
+    dateTime: string
 }
 
 export interface CdJob extends CdPipelineComponent {

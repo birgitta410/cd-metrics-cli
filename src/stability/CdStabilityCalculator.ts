@@ -2,6 +2,7 @@ import { CdPipelineReader, CdPipeline, CdJob, CdFailureRate } from "./Model";
 import moment from "moment";
 import chalk from "chalk";
 import * as _ from "lodash";
+import { Printer } from '../Printer';
 
 export class CdStabilityCalculator {
   constructor(private pipelineReader: CdPipelineReader) {}
@@ -75,6 +76,9 @@ export class CdStabilityCalculator {
         })
         .flatten()
         .flatten()
+        .filter(job => {
+            return job.result === "success" || job.result === "failed";
+        })
         .value();
     console.log(`Got ${pipelines.length} pipelines with ${allJobs.length} jobs`);
     
@@ -101,6 +105,11 @@ export class CdStabilityCalculator {
             +`(${failureRate.numberOfFailed}/${failureRate.numberOfSuccess + failureRate.numberOfFailed})`
             +`\t\t${failureRate.name}`);
     });
+
+    const lines = _.orderBy(allJobs, "dateTime").map(job => {
+        return `${job.stage}\t${job.name}\t${job.result}\t${job.dateTime}`;
+    });
+    await Printer.print(lines, "Print list of job outcomes?");
 
   }
 }

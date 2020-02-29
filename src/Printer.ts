@@ -5,11 +5,11 @@ import chalk = require("chalk");
 const OUTPUT_FOLDER = "cd-metrics-cli-output";
 
 export class Printer {
-  public static async print(lines: string[]) {
+  public static async print(lines: string[], userQuestion: string = "Print events?") {
     const listEventsUserPrompt = await prompts({
       type: "select",
       name: "value",
-      message: "Print events?",
+      message: userQuestion,
       choices: [
         { title: "Yes", value: "yes" },
         { title: "No", value: "no" },
@@ -27,7 +27,7 @@ export class Printer {
       const fileNamePrompt = await prompts({
         type: "text",
         name: "value",
-        message: "File name? (will be written to ./outputs)"
+        message: `File name? (will be written to ./${OUTPUT_FOLDER}/)`
       });
       const filePath = `./${OUTPUT_FOLDER}/${fileNamePrompt.value}`;
       console.log(`Writing output to file ${chalk.cyanBright(filePath)}`);

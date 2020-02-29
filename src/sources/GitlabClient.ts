@@ -188,7 +188,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       id: gitlabJob.id,
       name: gitlabJob.name,
       stage: gitlabJob.stage,
-      result: gitlabJob.status
+      result: gitlabJob.status,
+      dateTime: CdEventsWriter.normalizeTime(gitlabJob.finished_at)
     };
   }
 
@@ -200,6 +201,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       const cdPipeline: CdPipeline = {
         id: p.id, 
         result: p.status,
+        dateTime: CdEventsWriter.normalizeTime(p.updated_at),
         stages: {}
       }
       const jobsInPipeline = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
