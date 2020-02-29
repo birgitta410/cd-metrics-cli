@@ -14,7 +14,7 @@ export class CdChangeService {
         }
     }
 
-    private addTagsToEvents(changeEvent: CdChangeEvent, tags: CdChangeReference[]): CdChangeEvent {
+    private addReferencesToEvents(changeEvent: CdChangeEvent, tags: CdChangeReference[]): CdChangeEvent {
         const tagPointingAtCommit = tags.filter((tag: CdChangeReference) => {
             return tag.commit === changeEvent.revision;
         });
@@ -40,7 +40,7 @@ export class CdChangeService {
         const commits = _.chain(eventsPerBranch)
           .uniqBy("revision")
           .map((c: any) => {
-            return this.addTagsToEvents(c, tags);
+            return this.addReferencesToEvents(c, tags.concat(targetRefs));
           })
           .value();
         console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es)/tag(s) ${chalk.cyanBright(targetRefs)}`);

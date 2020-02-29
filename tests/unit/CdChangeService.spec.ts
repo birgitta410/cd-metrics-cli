@@ -51,6 +51,13 @@ describe("CdChangeService", () => {
     };
   }
 
+  function masterBranch() : CdChangeReference {
+    return {
+      "name": "master",
+      "commit": "55cb3e2c",
+    };
+  }
+
   function someTag() : CdChangeReference {
     return {
       "name": "4.5.0-1",
@@ -65,9 +72,9 @@ describe("CdChangeService", () => {
         commit
       ]);
 
-      const masterBranch: CdChangeReference = { name: "master", commit: commit.revision };
+      const theMasterBranch: CdChangeReference = masterBranch();
       changeReaderMock.loadBranches.mockResolvedValue([
-        masterBranch
+        theMasterBranch
       ]);
 
       const query = {
@@ -83,11 +90,11 @@ describe("CdChangeService", () => {
       expect(actualCommits[0].revision).toBe(commit.revision);
       expect(moment(actualCommits[0].dateTime).valueOf()).toBe(moment(commit.dateTime).valueOf());
       expect(actualCommits[0].isMergeCommit).toBe(false);
-      expect(changeReaderMock.loadCommitsForReferences).toHaveBeenCalledWith(query, [masterBranch]);
+      expect(changeReaderMock.loadCommitsForReferences).toHaveBeenCalledWith(query, [theMasterBranch]);
 
     });
 
-    test.skip("should get unique commits for multiple branches if branch name is pattern", async () => {
+    test("should add branch as ref to commits", async () => {
       const masterCommit1 = someCommit();
       masterCommit1.revision = "654321";
       const masterCommit2 = someCommit();
@@ -101,10 +108,14 @@ describe("CdChangeService", () => {
       changeReaderMock.loadCommitsForReferences.mockResolvedValue([
         masterCommit1, masterCommit2, branchCommit1, branchCommit2]);
 
+      const theMaster = masterBranch();
+      theMaster.commit = masterCommit2.revision;
+
       const branch = someBranch();
       branch.name = "release/1.2";
+      branch.commit = branchCommit2.revision;
       changeReaderMock.loadBranches.mockResolvedValue([
-        branch
+        branch, theMaster
       ]);
 
       const actualCommits = await createService().loadChanges({
@@ -116,20 +127,17 @@ describe("CdChangeService", () => {
 
       expect(actualCommits.length).toBe(4);
 
-      // How to find out which commits are UNIQUELY on the release branch? Created after it was split off?!
-      // The branch result from the Gitlab API contains a commit - probably the latest commit of the branch, yeah
-      // Then need to find all the ones between that one and ... no...
-      // Maybe I can just "tag" all the commits that a job also pointed at?
+      const actualMasterCommit = actualCommits.find(c => c.revision === theMaster.commit);
+      expect(actualMasterCommit).toBeDefined();
+      expect(actualMasterCommit.ref).toBe("master");
 
-      // OR:
-      // 1) Assume that release branches are always created from the same branch (e.g. master)
-      // 2) Find the latest commit that those two branches have in common
-      // 3) Go from there
+      const actualBranchCommit = actualCommits.find(c => c.revision === branch.commit);
+      expect(actualBranchCommit).toBeDefined();
+      expect(actualBranchCommit.ref).toBe(branch.name);
 
-      expect(actualCommits[0].ref).toBe("master");
-      expect(actualCommits[1].ref).toBe("release/1.2");
-      expect(actualCommits[2].ref).toBe("release/1.2");
-
+      expect(changeReaderMock.loadBranches).toHaveBeenCalled();
+      expect(changeReaderMock.loadTags).not.toHaveBeenCalled();
+      
     });
 
     test("should add tag to change event if tags pattern is set", async () => {
