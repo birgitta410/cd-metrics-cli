@@ -26,9 +26,9 @@ export class GitRepoClient implements CdChangeReader {
     public async getBranches(): Promise<nodegit.Reference[]> {
       const repo = await nodegit.Repository.open(this.pathToRepo);
       const references: nodegit.Reference[] = await (repo.getReferences as any)();
-      return _.filter(references, ref => {
-        return ref.isBranch() === 1;
-      });
+      return _.uniqBy(_.filter(references, ref => {
+        return ref.isRemote() === 1 && ref.isTag() === 0;
+      }), (ref) => { return ref.name(); });
     }
 
     public async getTags(): Promise<nodegit.Tag[]> {
@@ -86,7 +86,7 @@ export class GitRepoClient implements CdChangeReader {
       const allBranches = await this.getBranches();
       const references = allBranches.map(branch => {
         return {
-          name: branch.name(),
+          name: branch.shorthand().replace("origin/", ""),
           commit: branch.target().tostrS()
         };
       });

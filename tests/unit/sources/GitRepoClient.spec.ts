@@ -51,9 +51,9 @@ describe("GitRepoClient", () => {
       const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("*");
 
       expect(actualBranches.length).toBe(3);
-      expect(actualBranches[0].name).toBe("refs/heads/master");
+      expect(actualBranches[0].name).toBe("master");
       expect(actualBranches[0].commit).toContain("c28b8373");
-      expect(actualBranches[1].name).toBe("refs/heads/some-branch");
+      expect(actualBranches[1].name).toBe("some-branch");
       expect(actualBranches[1].commit).toBe("e65e3001bc8d02dee795600caa83cecff062a93f");
       
     });
