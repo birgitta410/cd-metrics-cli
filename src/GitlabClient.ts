@@ -109,14 +109,6 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     console.log(`Got and filtered ${chalk.cyanBright(compactedJobs.length)} jobs`);
     return compactedJobs;
   };
-  private async getRefNames(query: CdEventsQuery): Promise<string[]> {
-    if(query.tags !== undefined) {
-      return await this.loadTagNames(query.tags);
-    } else {
-      const branches = await this.loadBranches(query.branch);
-      return branches.map(b => b.name);
-    }
-  }
 
   private commitToEvent(gitlabCommit: any): CdChangeEvent {
     const isMergeCommit = gitlabCommit.parent_ids.length > 1;
@@ -140,6 +132,16 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     });
   }
 
+  private async getRefNames(query: CdEventsQuery): Promise<string[]> {
+    if(query.tags !== undefined) {
+      const tags = await this.loadTags(query.tags);
+      return tags.map(t => t.name);
+    } else {
+      const branches = await this.loadBranches(query.branch);
+      return branches.map(b => b.name);
+    }
+  }
+
   public async loadTags(tagSearchPattern: string): Promise<CdChangeReference[]> {
     const tags = await <any[]><unknown>this.api.Tags.all(this.projectId, {
       search: tagSearchPattern
@@ -152,30 +154,20 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     });
   }
   
-  public async loadCommitsForReferences(query: CdEventsQuery, targetRefs: CdChangeReference[]): Promise<CdChangeEvent[]> {
-    const commits = await Promise.all(targetRefs.map(async  (branchName: any) => {
-      return <any[]><unknown>this.api.Commits.all(this.projectId, {
-        refName: branchName,
-        since: CdEventsWriter.gitlabDateString(query.since),
-        until: CdEventsWriter.gitlabDateString(query.until),
-        all: true
-      });
-    }));
+  public async loadCommitsForBranch(query: CdEventsQuery, branch: CdChangeReference): Promise<CdChangeEvent[]> {
+    const branchName = branch.name;
+    const commits = await <any[]><unknown>this.api.Commits.all(this.projectId, {
+      refName: branchName,
+      since: CdEventsWriter.gitlabDateString(query.since),
+      until: CdEventsWriter.gitlabDateString(query.until),
+      all: true
+    });
     return _.chain(commits)
       .flatten()
       .map((c: any) => {
         return this.commitToEvent(c);
       })
       .value();
-  }
-
-  private async loadTagNames(
-    tagSearchPattern: string
-  ): Promise<any[]> {
-    const tags = await <any[]><unknown>this.api.Tags.all(this.projectId, {
-      search: tagSearchPattern
-    });
-    return tags.map(b => b.name);
   }
 
 }

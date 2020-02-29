@@ -32,13 +32,12 @@ yargs
       .option("releaseBranch", {
         alias: "rb",
         default: "master",
-        description: "Name of the branch that releases to production;"
-          + " no regular expressions, but ^ and $ can be used to indicate start or end of a partial pattern "
-          +"(e.g. ^release will find branches starting with 'release')"
+        description: "Name of the branch that releases to production; ONLY ONE BRANCH IS POSSIBLE HERE, "
+          + "use of release branches is currently not supported."
       })
       .option("releaseTags", {
         alias: "rt",
-        description: "Search pattern for tags from which production is released - alternative to specifying a releaseBranch;"
+        description: "Search pattern for tags on releaseBranch from which production deployments happen"
           + " no regular expressions, but ^ and $ can be used to indicate start or end of a partial pattern "
           + "(e.g. ^release will find tags starting with 'release')"
       })

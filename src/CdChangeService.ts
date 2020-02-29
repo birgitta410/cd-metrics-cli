@@ -6,14 +6,6 @@ export class CdChangeService {
 
     constructor(private reader: CdChangeReader) { }
 
-    private async getRefNames(query: CdEventsQuery): Promise<CdChangeReference[]> {
-        if(query.tags !== undefined) {
-            return await this.reader.loadTags(query.tags);
-        } else {
-            return await this.reader.loadBranches(query.branch);
-        }
-    }
-
     private addReferencesToEvents(changeEvent: CdChangeEvent, tags: CdChangeReference[]): CdChangeEvent {
         const tagPointingAtCommit = tags.filter((tag: CdChangeReference) => {
             return tag.commit === changeEvent.revision;
@@ -33,17 +25,20 @@ export class CdChangeService {
            tags = await this.reader.loadTags(query.tags);
         }
         
-        let targetRefs = await this.getRefNames(query);
-    
-        const eventsPerBranch = await this.reader.loadCommitsForReferences(query, targetRefs);
+        const branches = await this.reader.loadBranches(query.branch);
+        if (branches.length !== 1) {
+          console.log(chalk.red(`ERROR: Expecting exactly one branch named '${query.branch}', but found ${branches.length}`));
+          return [];
+        }
+
+        const eventsPerBranch = await this.reader.loadCommitsForBranch(query, branches[0]);
 
         const commits = _.chain(eventsPerBranch)
-          .uniqBy("revision")
           .map((c: any) => {
-            return this.addReferencesToEvents(c, tags.concat(targetRefs));
+            return this.addReferencesToEvents(c, tags.concat(tags));
           })
           .value();
-        console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es)/tag(s) ${chalk.cyanBright(targetRefs)}`);
+        console.log(`Got ${chalk.cyanBright(commits.length)} commits from branch ${chalk.cyanBright(branches[0].name)}`);
         return commits;
           
       }

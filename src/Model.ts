@@ -33,7 +33,7 @@ export interface CdChangeReference {
 export interface CdChangeReader {
   loadTags(tagsPattern: string): Promise<CdChangeReference[]>;
   loadBranches(branchPattern: string): Promise<CdChangeReference[]>;
-  loadCommitsForReferences(query: CdEventsQuery, targetRefs: CdChangeReference[]): Promise<CdChangeEvent[]>;
+  loadCommitsForBranch(query: CdEventsQuery, branch: CdChangeReference): Promise<CdChangeEvent[]>;
 }
 
 export interface CdDeploymentReader {

@@ -269,19 +269,19 @@ describe("GitlabClient", () => {
     });
   });
 
-  describe("loadCommitsForReferences", () => {
+  describe("loadCommitsForBranch", () => {
     test("should get all commits for the specified branch", async () => {
       const commit = someGitlabCommit();
       commitsApiMock.all.mockResolvedValue([
         commit
       ]);
 
-      const actualCommits = await createApi().loadCommitsForReferences({
+      const actualCommits = await createApi().loadCommitsForBranch({
         since: moment(),
         until: moment(),
         branch: "master",
         prodDeploymentJobNames: ["does-not-matter"]
-      }, [toChangeReference({ name: "master" })]);
+      }, toChangeReference({ name: "master" }));
 
       expect(actualCommits.length).toBe(1);
 
