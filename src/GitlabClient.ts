@@ -63,14 +63,15 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     }
   }
 
-  private mapToDeploymentEvent(gitlabJob: any): CdDeploymentEvent {
+  private jobToEvent(gitlabJob: any): CdDeploymentEvent {
     return {
       eventType: "deployment",
       revision: gitlabJob.commit.short_id,
       dateTime: CdEventsWriter.normalizeTime(gitlabJob.finished_at),
       result: gitlabJob.status,
       jobName: gitlabJob.name,
-      url: gitlabJob.web_url
+      url: gitlabJob.web_url,
+      ref: gitlabJob.ref
     };
   }
 
@@ -102,7 +103,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     
     const compactedJobs = _.chain(jobsForPipelinesInBranch)
       .compact()
-      .map(this.mapToDeploymentEvent)
+      .map(this.jobToEvent)
       .value();
     console.log(`Got and filtered ${chalk.cyanBright(compactedJobs.length)} jobs`);
     return compactedJobs;
@@ -152,17 +153,6 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     };
   }
 
-  private async loadCommitsForReference(query: CdEventsQuery, targetRefs: string[]): Promise<any[]> {
-    return await Promise.all(targetRefs.map(async  (branchName: any) => {
-      return <any[]><unknown>this.api.Commits.all(this.projectId, {
-        refName: branchName,
-        since: CdEventsWriter.gitlabDateString(query.since),
-        until: CdEventsWriter.gitlabDateString(query.until),
-        all: true
-      });
-    }));
-  }
-
   private commitToEventWithTags(commit: any, tags: any[]): CdChangeEvent {
     const changeEvent = this.commitToEvent(commit);
     const tagPointingAtCommit = tags.filter((tag: any) => {
@@ -172,6 +162,17 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
       changeEvent.ref = tagPointingAtCommit[0].name;
     }
     return changeEvent;
+  }
+
+  private async loadCommitsForReference(query: CdEventsQuery, targetRefs: string[]): Promise<any[]> {
+    return await Promise.all(targetRefs.map(async  (branchName: any) => {
+      return <any[]><unknown>this.api.Commits.all(this.projectId, {
+        refName: branchName,
+        since: CdEventsWriter.gitlabDateString(query.since),
+        until: CdEventsWriter.gitlabDateString(query.until),
+        all: true
+      });
+    }));
   }
 
   public async loadChanges(

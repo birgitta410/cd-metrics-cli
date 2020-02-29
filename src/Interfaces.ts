@@ -12,11 +12,11 @@ export interface CdEvent {
   eventType: "change" | "deployment",
   revision: string,
   dateTime: string,
+  ref?: string
 }
 
 export interface CdChangeEvent extends CdEvent {
-  isMergeCommit: boolean,
-  ref?: string
+  isMergeCommit: boolean
 };
 
 export interface CdDeploymentEvent extends CdEvent {

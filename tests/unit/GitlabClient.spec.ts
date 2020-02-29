@@ -188,22 +188,27 @@ describe("GitlabClient", () => {
     });
 
     test("should ask for pipelines on tags instead of branches, if tags were provided", async () => {
-      const deploymentJob: any = someJob();
-      deploymentJob.name = "the-deployment-job";
-      const otherJob: any = someJob();
-      otherJob.name = "some-job";
-      pipelinesApiMock.all.mockResolvedValue([
-        somePipeline(), somePipeline()
-      ]);
-      pipelinesApiMock.showJobs.mockResolvedValue([
-        deploymentJob
-      ]);
-
       const tag1 = someTag();
       tag1.name = "1.2.3"
       const tag2 = someTag();
       tag2.name = "1.2.4"
       
+      const deploymentJobTag1: any = someJob();
+      deploymentJobTag1.name = "the-deployment-job";
+      deploymentJobTag1.ref = tag1.name;
+      
+      const deploymentJobTag2: any = someJob();
+      deploymentJobTag2.name = deploymentJobTag1.name;
+      deploymentJobTag2.ref = tag2.name;
+      
+      pipelinesApiMock.all
+        .mockImplementationOnce(() => Promise.resolve([somePipeline()]))
+        .mockImplementationOnce(() => Promise.resolve([somePipeline()]));
+
+      pipelinesApiMock.showJobs
+        .mockImplementationOnce(() => Promise.resolve([deploymentJobTag1]))
+        .mockImplementationOnce(() => Promise.resolve([deploymentJobTag2]));
+
       tagsApiMock.all.mockResolvedValue([
         tag1, tag2
       ]);
@@ -213,10 +218,12 @@ describe("GitlabClient", () => {
         until: moment(),
         branch: "master",
         tags: "*",
-        prodDeploymentJobNames: [deploymentJob.name]
+        prodDeploymentJobNames: [deploymentJobTag1.name]
       });
 
-      expect(actualDeploymentJobs.length).toBe(4);
+      expect(actualDeploymentJobs.length).toBe(2);
+      expect(actualDeploymentJobs[0].ref).toBe("1.2.3");
+
       expect(pipelinesApiMock.all).toHaveBeenCalledTimes(2);
       expect(branchesApiMock.all).not.toHaveBeenCalled();
       expect(tagsApiMock.all).toHaveBeenCalledWith(1111, { search: "*" });
