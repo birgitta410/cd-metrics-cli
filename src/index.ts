@@ -3,7 +3,7 @@ import moment = require("moment");
 
 import { Gitlab } from "gitlab";
 import { GitlabClient, GitlabConfig } from "./sources/GitlabClient";
-import { CdEventsWriter } from './throughput/CdEventsWriter';
+import { CdThroughputCalculator } from './throughput/CdThroughputCalculator';
 import { CdChangeService } from './throughput/CdChangeService';
 import { CdStabilityCalculator } from './stability/CdStabilityCalculator';
 
@@ -102,7 +102,7 @@ yargs
 
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
     const changeService = new CdChangeService(gitlabClient);
-    const writer = new CdEventsWriter(changeService, gitlabClient);
+    const writer = new CdThroughputCalculator(changeService, gitlabClient);
     await writer.printChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
     
   })

@@ -11,7 +11,7 @@ import { CdChangeService } from './CdChangeService';
 import { Printer } from '../Printer';
 
 
-export class CdEventsWriter {
+export class CdThroughputCalculator {
   public static normalizeTime(time: string): string {
     return moment(time).format("YYYY-MM-DD HH:mm:ss");
   }
@@ -123,9 +123,9 @@ export class CdEventsWriter {
         JSON.stringify(gitlabQuery.prodDeploymentJobNames)
       )} as production deployments.
       Timeline ${chalk.cyanBright(
-        CdEventsWriter.gitlabDateString(gitlabQuery.since)
+        CdThroughputCalculator.gitlabDateString(gitlabQuery.since)
       )} - ${chalk.cyanBright(
-      CdEventsWriter.gitlabDateString(gitlabQuery.until)
+      CdThroughputCalculator.gitlabDateString(gitlabQuery.until)
     )}
       `);
 

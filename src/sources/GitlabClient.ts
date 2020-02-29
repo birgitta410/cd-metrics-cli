@@ -7,7 +7,7 @@ import { Gitlab } from "gitlab";
 
 import { RequestHelper } from "../RequestHelper";
 import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "../throughput/Model";
-import { CdEventsWriter } from "../throughput/CdEventsWriter";
+import { CdThroughputCalculator } from "../throughput/CdThroughputCalculator";
 import { CdPipelineReader, CdPipelineRun, CdJobRun, CdStabilityQuery } from '@/stability/Model';
 
 export class GitlabConfig {
@@ -70,7 +70,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     return {
       eventType: "deployment",
       revision: gitlabJob.commit.short_id,
-      dateTime: CdEventsWriter.normalizeTime(gitlabJob.finished_at),
+      dateTime: CdThroughputCalculator.normalizeTime(gitlabJob.finished_at),
       result: gitlabJob.status,
       jobName: gitlabJob.name,
       url: gitlabJob.web_url,
@@ -84,8 +84,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const pipelinesPerRef = await Promise.all(targetRefs.map(async  (refName) => {
       return <any[]><unknown>this.api.Pipelines.all(this.projectId, {
         ref: refName,
-        updated_after: CdEventsWriter.gitlabDateString(query.since),
-        updated_before: CdEventsWriter.gitlabDateString(query.until)
+        updated_after: CdThroughputCalculator.gitlabDateString(query.since),
+        updated_before: CdThroughputCalculator.gitlabDateString(query.until)
       });
     }));
     const pipelines = _.flatten(pipelinesPerRef);
@@ -117,7 +117,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     return {
       eventType: "change",
       revision: gitlabCommit.short_id,
-      dateTime: CdEventsWriter.normalizeTime(gitlabCommit.created_at),
+      dateTime: CdThroughputCalculator.normalizeTime(gitlabCommit.created_at),
       isMergeCommit: isMergeCommit
     };
   }
@@ -160,8 +160,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const branchName = branch.name;
     const commits = await <any[]><unknown>this.api.Commits.all(this.projectId, {
       refName: branchName,
-      since: CdEventsWriter.gitlabDateString(query.since),
-      until: CdEventsWriter.gitlabDateString(query.until),
+      since: CdThroughputCalculator.gitlabDateString(query.since),
+      until: CdThroughputCalculator.gitlabDateString(query.until),
       all: true
     });
     return _.chain(commits)
@@ -175,8 +175,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
   private async getAllPipelines(since: moment.Moment, until: moment.Moment): Promise<any[]> {
 
     const pipelineRuns = await <any[]><unknown>this.api.Pipelines.all(this.projectId, {
-        updated_after: CdEventsWriter.gitlabDateString(since),
-        updated_before: CdEventsWriter.gitlabDateString(until)
+        updated_after: CdThroughputCalculator.gitlabDateString(since),
+        updated_before: CdThroughputCalculator.gitlabDateString(until)
       });
     
     console.log(`Got ${chalk.cyanBright(pipelineRuns.length)} pipeline runs`);
@@ -189,7 +189,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       jobName: gitlabJobRun.name,
       stageName: gitlabJobRun.stage,
       result: gitlabJobRun.status,
-      dateTime: CdEventsWriter.normalizeTime(gitlabJobRun.finished_at)
+      dateTime: CdThroughputCalculator.normalizeTime(gitlabJobRun.finished_at)
     };
   }
 
@@ -204,7 +204,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       id: gitlabPipelineRun.id, 
       pipelineName: this.constructPipelineName(jobRuns),
       result: gitlabPipelineRun.status,
-      dateTime: CdEventsWriter.normalizeTime(gitlabPipelineRun.updated_at),
+      dateTime: CdThroughputCalculator.normalizeTime(gitlabPipelineRun.updated_at),
       jobs: jobRuns
     };
   }

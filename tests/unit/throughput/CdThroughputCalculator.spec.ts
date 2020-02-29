@@ -1,6 +1,6 @@
 import moment = require('moment');
-import { CdChangeReader, CdDeploymentReader, CdEventsQuery, CdDeploymentEvent, CdChangeEvent } from '../../../src/throughput/Model';
-import { CdEventsWriter } from '../../../src/throughput/CdEventsWriter';
+import { CdDeploymentReader, CdEventsQuery, CdDeploymentEvent, CdChangeEvent } from '../../../src/throughput/Model';
+import { CdThroughputCalculator } from '../../../src/throughput/CdThroughputCalculator';
 
 class CdChangeServiceMock {
   loadChanges(query: CdEventsQuery): Promise<any[]> {
@@ -14,7 +14,7 @@ class CdDeploymentReaderMock implements CdDeploymentReader {
   }
 }
 
-describe("CdEventsWriter", () => {
+describe("CdThroughputCalculator", () => {
   let changeServiceMock: any = {};
   let deploymentReaderMock: any = {};
 
@@ -68,8 +68,8 @@ describe("CdEventsWriter", () => {
           changeEvent
         ]);
 
-        const eventsWriter = new CdEventsWriter(changeServiceMock, deploymentReaderMock);
-        const events = await eventsWriter.getChangesAndDeploymentsTimeline({
+        const throughputCalculator = new CdThroughputCalculator(changeServiceMock, deploymentReaderMock);
+        const events = await throughputCalculator.getChangesAndDeploymentsTimeline({
           since: moment(),
           until: moment(),
           branch: "master",
@@ -115,8 +115,8 @@ describe("CdEventsWriter", () => {
           changeEvent1, changeEvent2, changeEvent3Tagged, changeEvent4
         ]);
 
-        const eventsWriter = new CdEventsWriter(changeServiceMock, deploymentReaderMock);
-        const events = await eventsWriter.getChangesAndDeploymentsTimeline({
+        const throughputCalculator = new CdThroughputCalculator(changeServiceMock, deploymentReaderMock);
+        const events = await throughputCalculator.getChangesAndDeploymentsTimeline({
           since: moment(),
           until: moment(),
           branch: "master",
@@ -174,8 +174,8 @@ describe("CdEventsWriter", () => {
           changeEvent1, changeEvent2, changeEvent3OnBranch, changeEvent4OnBranch, changeEvent5
         ]);
 
-        const eventsWriter = new CdEventsWriter(changeServiceMock, deploymentReaderMock);
-        const events = await eventsWriter.getChangesAndDeploymentsTimeline({
+        const throughputCalculator = new CdThroughputCalculator(changeServiceMock, deploymentReaderMock);
+        const events = await throughputCalculator.getChangesAndDeploymentsTimeline({
           since: moment(),
           until: moment(),
           branch: "master",

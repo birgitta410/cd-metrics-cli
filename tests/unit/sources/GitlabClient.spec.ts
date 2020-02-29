@@ -1,7 +1,7 @@
 import { Gitlab, Pipelines, Commits, Branches, Tags } from "gitlab";
 import { GitlabClient, GitlabConfig } from "../../../src/sources/GitlabClient";
 import moment = require('moment');
-import { CdEventsWriter } from '@/throughput/CdEventsWriter';
+import { CdThroughputCalculator } from '@/throughput/CdThroughputCalculator';
 import { CdChangeReference } from '@/throughput/Model';
 import { CdStabilityQuery } from '@/stability/Model';
 
@@ -167,7 +167,7 @@ describe("GitlabClient", () => {
 
       expect(actualDeploymentJobs[0].eventType).toBe("deployment");
       expect(actualDeploymentJobs[0].revision).toBe(deploymentJob.commit.short_id);
-      expect(CdEventsWriter.normalizeTime(actualDeploymentJobs[0].dateTime)).toBe(CdEventsWriter.normalizeTime(deploymentJob.finished_at));
+      expect(CdThroughputCalculator.normalizeTime(actualDeploymentJobs[0].dateTime)).toBe(CdThroughputCalculator.normalizeTime(deploymentJob.finished_at));
       expect(actualDeploymentJobs[0].result).toBe(deploymentJob.status);
       expect(actualDeploymentJobs[0].jobName).toBe(deploymentJob.name);
 
