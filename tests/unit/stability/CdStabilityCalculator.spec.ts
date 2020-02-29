@@ -157,8 +157,7 @@ describe("CdStabilityData", () => {
       expect(data.pipelineMttrs.length).toBe(1);
 
       expect(data.pipelineMttrs[0].mttr).toBeUndefined();
-      expect(data.pipelineMttrs[0].mttrComment).toContain("all runs");
-      expect(data.pipelineMttrs[0].mttrComment).toContain("failures");
+      expect(data.pipelineMttrs[0].mttrComment).toContain("run(s) failed");
       
       
     });
@@ -175,8 +174,7 @@ describe("CdStabilityData", () => {
       expect(data.pipelineMttrs.length).toBe(1);
 
       expect(data.pipelineMttrs[0].mttr).toBeUndefined();
-      expect(data.pipelineMttrs[0].mttrComment).toContain("all runs");
-      expect(data.pipelineMttrs[0].mttrComment).toContain("successes");
+      expect(data.pipelineMttrs[0].mttrComment).toContain("run(s) succeeded");
       
     });
 

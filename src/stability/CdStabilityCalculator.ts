@@ -85,7 +85,7 @@ export class CdStabilityData {
       return {
         mttr: undefined,
         numberOfRuns: pipelinesWithName.length,
-        mttrComment: `all ${pipelinesWithName.length} runs in time frame are ${allFailures.length === 0 ? "successes" : "failures"}`,
+        mttrComment: `all ${pipelinesWithName.length} run(s) ${allFailures.length === 0 ? "succeeded" : "failed"}`,
         pipelineName: pipelineName
       }
     }
@@ -164,22 +164,33 @@ export class CdStabilityCalculator {
 
     const data = new CdStabilityData(pipelines);
 
+    console.log(chalk.cyanBright(`
+#######################
+Change failure rate
+#######################`));
     const failureByPipeline = data.pipelineFailureRate;
     console.log(`Failure rate of pipelines is ${CdStabilityCalculator.colorFn(failureByPipeline.failureRate)(`${failureByPipeline.failureRate}%`)}`
-        +` (${failureByPipeline.numberOfFailed}/${failureByPipeline.numberOfFailed+failureByPipeline.numberOfSuccess})`);
+        +` (${failureByPipeline.numberOfFailed}/${failureByPipeline.numberOfFailed+failureByPipeline.numberOfSuccess})
+        `);
 
     const jobFailureRates = data.jobFailureRates;
+    console.log(`Jobs, ordered by their individual failure rates:`);
     _.orderBy(jobFailureRates, "failureRate", "desc").forEach(failureRate => {
         console.log(`${CdStabilityCalculator.colorFn(failureRate.failureRate)(`${failureRate.failureRate}%\t`)} `
             +`${failureRate.numberOfFailed}/${failureRate.numberOfSuccess + failureRate.numberOfFailed}`
             +`\t\t${failureRate.name}`);
     });
 
+    console.log(chalk.cyanBright(`
+#######################
+Mean time to restore
+#######################`));
     const pipelineMttrs = _.orderBy(data.pipelineMttrs, "pipelineName");
     pipelineMttrs.forEach(mttr => {
-      console.log(`${mttr.mttr ? mttr.mttr!.humanize() : `n/a`}`
-        +`\t${mttr.mttrComment ? `(${mttr.mttrComment})` : `${mttr.numberOfRuns} run(s) considered`}`
-        +`\t${mttr.pipelineName}`);
+      const mttrInfo = mttr.mttrComment ? `${mttr.mttrComment}` : `${mttr.numberOfRuns} run(s) considered`;
+      console.log(`${mttr.mttr ? mttr.mttr!.humanize().padEnd(12) : `n/a`.padEnd(12)}`
+        +`${mttrInfo.padEnd(25)}`
+        +`${mttr.pipelineName}`);
     });
 
     const lines = _.orderBy(pipelines, "dateTime")
