@@ -193,6 +193,15 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     };
   }
 
+  private toCdPipelineRun(gitlabPipelineRun:any, jobRuns: CdJobRun[]): CdPipelineRun {
+    return {
+      id: gitlabPipelineRun.id, 
+      result: gitlabPipelineRun.status,
+      dateTime: CdEventsWriter.normalizeTime(gitlabPipelineRun.updated_at),
+      jobs: jobRuns
+    };
+  }
+
   public async loadPipelines(query: CdStabilityQuery): Promise<CdPipelineRun[]> {
 
     const pipelineRuns = await this.getAllPipelines(query.since, query.until);
@@ -201,12 +210,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       
       const jobsInPipelineRun = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
       const jobRuns = jobsInPipelineRun.map(this.toCdJobRun);
-      return {
-        id: p.id, 
-        result: p.status,
-        dateTime: CdEventsWriter.normalizeTime(p.updated_at),
-        jobs: jobRuns
-      };
+      return this.toCdPipelineRun(p, jobRuns);
     });
     
     return allPipelineRuns;

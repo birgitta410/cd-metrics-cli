@@ -3,6 +3,7 @@ import { GitlabClient, GitlabConfig } from "../../../src/sources/GitlabClient";
 import moment = require('moment');
 import { CdEventsWriter } from '@/throughput/CdEventsWriter';
 import { CdChangeReference } from '@/throughput/Model';
+import { CdStabilityQuery } from '@/stability/Model';
 
 jest.mock("gitlab");
 
@@ -267,6 +268,37 @@ describe("GitlabClient", () => {
 
       expect(events.length).toBe(0);
     });
+  });
+
+  describe("loadPipelines", () => {
+    test("should ask for pipelines on branch and load their respective deployment jobs", async () => {
+      pipelinesApiMock.all.mockResolvedValue([
+        someGitlabPipeline(), someGitlabPipeline()
+      ]);
+      
+      const job1: any = someGitlabJob();
+      job1.name = "a-job";
+      const job2: any = someGitlabJob();
+      job2.name = "some-job";
+      pipelinesApiMock.showJobs.mockResolvedValue([
+        job1, job2
+      ]);
+
+      mockMasterBranch();
+
+      const query: CdStabilityQuery = {
+        branch: "master",
+        since: moment(),
+        until: moment() 
+      };
+      const actualPipelineRuns = await createApi().loadPipelines(query);
+
+      expect(actualPipelineRuns.length).toBe(2);
+      expect(pipelinesApiMock.all).toHaveBeenCalled();
+      expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(2);
+
+    });
+
   });
 
   describe("loadCommitsForBranch", () => {
