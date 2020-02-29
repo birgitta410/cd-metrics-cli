@@ -198,19 +198,15 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const pipelines = await this.getAllPipelines(query.since, query.until);
     
     const allPipelines: CdPipeline[] = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
-      const cdPipeline: CdPipeline = {
+      
+      const jobsInPipeline = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
+      const cdJobs = jobsInPipeline.map(this.toCdJob);
+      return {
         id: p.id, 
         result: p.status,
         dateTime: CdEventsWriter.normalizeTime(p.updated_at),
-        stages: {}
-      }
-      const jobsInPipeline = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
-      const cdJobs = jobsInPipeline.map(this.toCdJob);
-      const allStageNames = _.uniq(cdJobs.map(job => { return job.stage; }));
-      allStageNames.forEach(stageName => {
-        cdPipeline.stages[stageName] = cdJobs.filter(job => { return job.stage === stageName; });
-      });
-      return cdPipeline;
+        jobs: cdJobs
+      };
     });
     
     return allPipelines;

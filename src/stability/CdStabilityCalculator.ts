@@ -1,4 +1,4 @@
-import { CdPipelineReader, CdPipeline, CdJob, CdFailureRate } from "./Model";
+import { CdPipelineReader, CdPipeline, CdJob, CdFailureRate, CdPipelineComponent } from "./Model";
 import moment from "moment";
 import chalk from "chalk";
 import * as _ from "lodash";
@@ -7,13 +7,26 @@ import { Printer } from '../Printer';
 export class CdStabilityCalculator {
   constructor(private pipelineReader: CdPipelineReader) {}
 
+  private static COLOR_BAD = chalk.redBright;
+  private static COLOR_OK = chalk.yellowBright;
+  private static COLOR_PERFECT = chalk.greenBright;
 
-  private getFailureRateFor(jobs: CdJob[]): CdFailureRate {
-    const numberOfFailed = jobs.filter(job => {
-        return job.result === "failed";
+  private static colorFn(failureRate: number) {
+    if(failureRate >= 50) {
+      return CdStabilityCalculator.COLOR_BAD;
+    } else if (failureRate <=5) {
+        return CdStabilityCalculator.COLOR_PERFECT;
+    } else {
+      return CdStabilityCalculator.COLOR_OK;
+    }
+  }
+
+  private getFailureRateFor(jobsOrPipelines: CdPipelineComponent[]): CdFailureRate {
+    const numberOfFailed = jobsOrPipelines.filter(jobOrPipeline => {
+        return jobOrPipeline.result === "failed";
     }).length;
-    const numberOfSuccess = jobs.filter(job => {
-        return job.result === "success";
+    const numberOfSuccess = jobsOrPipelines.filter(jobOrPipeline => {
+        return jobOrPipeline.result === "success";
     }).length;
 
     if(numberOfSuccess === 0 && numberOfFailed === 0) {
@@ -29,17 +42,6 @@ export class CdStabilityCalculator {
             numberOfFailed: numberOfFailed
         };
     }
-  }
-
-  private addFailureRateToPipeline(pipeline: CdPipeline) {
-    const allJobs = _.flatten(
-      _.keys(pipeline.stages).map(stageName => {
-        return pipeline.stages[stageName];
-      })
-    );
-
-    pipeline.metrics = pipeline.metrics || {};
-    pipeline.metrics.failure = this.getFailureRateFor(allJobs).failureRate;
   }
 
   private getFailureRateByJobs(jobs: CdJob[]): CdFailureRate[] {
@@ -69,47 +71,49 @@ export class CdStabilityCalculator {
     const pipelines = await this.pipelineReader.loadPipelines(query);
     const allJobs = _.chain(pipelines)
         .map(pipeline => {
-            const stageNames = _.keys(pipeline.stages);
-            return stageNames.map(stageName => {
-                return pipeline.stages[stageName];
-            })
+            return pipeline.jobs;
         })
-        .flatten()
         .flatten()
         .filter(job => {
             return job.result === "success" || job.result === "failed";
         })
         .value();
-    console.log(`Got ${pipelines.length} pipelines with ${allJobs.length} jobs`);
-    
-    pipelines.forEach(pipeline => this.addFailureRateToPipeline(pipeline));
-    
-    const allMetrics = pipelines.map(p => p.metrics);
-    const average = _.round(_.meanBy(allMetrics, "failure"), 2);
+    console.log(`Got ${chalk.cyanBright(pipelines.length)} pipelines with ${chalk.cyanBright(allJobs.length)} jobs`);
 
+    // PIPELINE STATS
+    
+    const failureByPipeline = this.getFailureRateFor(pipelines);
+    console.log(`Failure rate of pipelines is ${CdStabilityCalculator.colorFn(failureByPipeline.failureRate)(`${failureByPipeline.failureRate}%`)}`
+        +` (${failureByPipeline.numberOfFailed}/${failureByPipeline.numberOfFailed+failureByPipeline.numberOfSuccess})`);
+    
+    // JOB STATS
     const jobFailureRates = this.getFailureRateByJobs(allJobs);
-    
-    console.log(`Average failure rate is ${chalk.cyanBright(average)}`);
-
-    const COLOR_BAD = chalk.redBright;
-    const COLOR_OK = chalk.yellowBright;
-    const COLOR_PERFECT = chalk.greenBright;
     _.orderBy(jobFailureRates, "failureRate", "desc").forEach(failureRate => {
-        let colorFn = COLOR_OK;
-        if(failureRate.failureRate >= 50) {
-            colorFn = COLOR_BAD;
-        } else if (failureRate.failureRate <=5) {
-            colorFn = COLOR_PERFECT;
-        }
-        console.log(`${colorFn(failureRate.failureRate)} `
-            +`(${failureRate.numberOfFailed}/${failureRate.numberOfSuccess + failureRate.numberOfFailed})`
+        console.log(`${CdStabilityCalculator.colorFn(failureRate.failureRate)(`${failureRate.failureRate}%\t`)} `
+            +`${failureRate.numberOfFailed}/${failureRate.numberOfSuccess + failureRate.numberOfFailed}`
             +`\t\t${failureRate.name}`);
     });
 
-    const lines = _.orderBy(allJobs, "dateTime").map(job => {
-        return `${job.stage}\t${job.name}\t${job.result}\t${job.dateTime}`;
-    });
-    await Printer.print(lines, "Print list of job outcomes?");
+    const lines = _.orderBy(pipelines, "dateTime")
+      .filter(pipeline => {
+        return pipeline.result === "success" || pipeline.result === "failed";
+      })
+      .map(pipeline => {
+        const failures = pipeline.jobs
+          .filter(job => {
+            return job.result === "failed";
+          })
+          .map(job => {
+            return job.name;
+          });
+        return `${pipeline.id}\t${failures}\t${pipeline.result}\t${pipeline.dateTime}`;
+      });
+    await Printer.print(lines, "Print list of pipeline outcomes?");
+
+    // const lines = _.orderBy(allJobs, "dateTime").map(job => {
+    //     return `${job.stage}\t${job.name}\t${job.result}\t${job.dateTime}`;
+    // });
+    // await Printer.print(lines, "Print list of job outcomes?");
 
   }
 }

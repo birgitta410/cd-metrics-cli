@@ -19,9 +19,7 @@ export interface CdJob extends CdPipelineComponent {
 }
 
 export interface CdPipeline extends CdPipelineComponent {
-    stages: {
-        [stageName: string]: CdJob[]
-    },
+    jobs: CdJob[],
     metrics?: {
         failure?: number,
         jobs?: {
