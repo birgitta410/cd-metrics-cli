@@ -15,7 +15,8 @@ export interface CdEvent {
 }
 
 export interface CdChangeEvent extends CdEvent {
-  isMergeCommit: boolean
+  isMergeCommit: boolean,
+  ref?: string
 };
 
 export interface CdDeploymentEvent extends CdEvent {

@@ -142,7 +142,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     }
   }
 
-  private mapToChangeEvent(gitlabCommit: any): CdChangeEvent {
+  private commitToEvent(gitlabCommit: any): CdChangeEvent {
     const isMergeCommit = gitlabCommit.parent_ids.length > 1;
     return {
       eventType: "change",
@@ -152,13 +152,8 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
     };
   }
 
-  public async loadChanges(
-    query: CdEventsQuery
-  ): Promise<CdChangeEvent[]> {
-
-    let targetRefs = await this.getRefNames(query);
-
-    const commitsPerBranch = await Promise.all(targetRefs.map(async  (branchName: any) => {
+  private async loadCommitsForReference(query: CdEventsQuery, targetRefs: string[]): Promise<any[]> {
+    return await Promise.all(targetRefs.map(async  (branchName: any) => {
       return <any[]><unknown>this.api.Commits.all(this.projectId, {
         refName: branchName,
         since: CdEventsWriter.gitlabDateString(query.since),
@@ -166,11 +161,40 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader {
         all: true
       });
     }));
+  }
+
+  private commitToEventWithTags(commit: any, tags: any[]): CdChangeEvent {
+    const changeEvent = this.commitToEvent(commit);
+    const tagPointingAtCommit = tags.filter((tag: any) => {
+      return tag.commit.short_id === changeEvent.revision;
+    });
+    if(tagPointingAtCommit.length > 0) {
+      changeEvent.ref = tagPointingAtCommit[0].name;
+    }
+    return changeEvent;
+  }
+
+  public async loadChanges(
+    query: CdEventsQuery
+  ): Promise<CdChangeEvent[]> {
+
+    let tags: any[] = [];
+    if(query.tags) {
+      tags = await <any[]><unknown>this.api.Tags.all(this.projectId, {
+        search: query.tags
+      });
+    }
+    
+    let targetRefs = await this.getRefNames(query);
+
+    const commitsPerBranch = await this.loadCommitsForReference(query, targetRefs);
     
     const commits = _.chain(commitsPerBranch)
       .flatten()
       .uniqBy("short_id")
-      .map(this.mapToChangeEvent)
+      .map((c: any) => {
+        return this.commitToEventWithTags(c, tags);
+      })
       .value();
     console.log(`Got ${chalk.cyanBright(commits.length)} unique commits from branch(es)/tag(s) ${chalk.cyanBright(targetRefs)}`);
     return commits;

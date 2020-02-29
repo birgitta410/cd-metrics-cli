@@ -291,20 +291,22 @@ describe("GitlabClient", () => {
 
     });
 
-    test("should get unique commits for multiple tags if tags pattern is set", async () => {
+    test("should add tag to change event if tags pattern is set", async () => {
       const commit1 = someCommit();
-      commit1.short_id = "654321"
+      commit1.short_id = "654321";
       const commit2 = someCommit();
-      commit2.short_id = "123456"
+      commit2.short_id = "123456";
       
       commitsApiMock.all
         .mockImplementationOnce(() => Promise.resolve([commit1, commit2]))
         .mockImplementationOnce(() => Promise.resolve([commit2]));
 
       const tag1 = someTag();
-      tag1.name = "1.2"
+      tag1.name = "1.2";
+      tag1.commit = { short_id: commit1.short_id };
       const tag2 = someTag();
-      tag2.name = "1.3"
+      tag2.name = "1.3";
+      tag2.commit = { short_id: commit2.short_id };
       tagsApiMock.all.mockResolvedValue([
         tag1, tag2
       ]);
@@ -318,6 +320,10 @@ describe("GitlabClient", () => {
       });
 
       expect(actualCommits.length).toBe(2);
+
+      expect(actualCommits[0].ref).toBe("1.2");
+      expect(actualCommits[1].ref).toBe("1.3");
+
       expect(tagsApiMock.all).toHaveBeenCalledWith(1111, { search: "*" })
       expect(branchesApiMock.all).not.toHaveBeenCalled();
 
