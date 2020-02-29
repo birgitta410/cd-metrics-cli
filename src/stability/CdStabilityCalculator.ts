@@ -1,4 +1,4 @@
-import { CdPipelineReader, CdPipelineRun, CdJobRun, CdFailureRate, CdPipelineComponent } from "./Model";
+import { CdPipelineReader, CdPipelineRun, CdJobRun, CdFailureRate, CdPipelineComponent, CdMttr } from "./Model";
 import moment from "moment";
 import chalk from "chalk";
 import * as _ from "lodash";
@@ -8,11 +8,15 @@ export class CdStabilityData {
   
   public pipelineFailureRate: CdFailureRate;
   public jobFailureRates: CdFailureRate[];
+  public pipelineMttrs: CdMttr[];
 
-  constructor(private pipelines: CdPipelineRun[]
-  ) {
-    this.pipelineFailureRate = this.calculateFailureRateFor(pipelines);
+  constructor(private pipelines: CdPipelineRun[]) {
+    const relevantPipelines = pipelines.filter(p => {
+      return p.result === "success" || p.result === "failed";
+    });
+    this.pipelineFailureRate = this.calculateFailureRateFor(relevantPipelines);
     this.jobFailureRates = this.calculateJobFailureRates(this.determineJobs());
+    this.pipelineMttrs = this.calculatePipelineMttrs(relevantPipelines);
   }
 
   private calculateJobFailureRates(jobRuns: CdJobRun[]): CdFailureRate[] {
@@ -63,6 +67,56 @@ export class CdStabilityData {
         .value();
   }
 
+  private calculatePipelineMttrs(pipelines: CdPipelineRun[]): CdMttr[] {
+    const pipelineNames = _.uniq(pipelines.map(p => { return p.pipelineName; }));
+    return pipelineNames.map((pipelineName: string) => {
+      return this.calculateMttrForOnePipeline(pipelineName, 
+        pipelines.filter(p => { return pipelineName === p.pipelineName; }));
+    });
+  }
+
+  private calculateMttrForOnePipeline(pipelineName: string, runsWithName: CdPipelineRun[]): CdMttr {
+    const pipelinesWithName = _.orderBy(runsWithName, "dateTime", "asc");
+
+    const allFailures = pipelinesWithName.filter(p => { return p.result === "failed"; });
+    const allSuccesses = pipelinesWithName.filter(p => { return p.result === "success"; });
+    if(allFailures.length === 0 || allSuccesses.length === 0) {
+      return {
+        mttr: undefined,
+        mttrComment: `all runs in time frame are ${allFailures.length === 0 ? "successes" : "failures"}`,
+        pipelineName: pipelineName
+      }
+    }
+    
+    const restoreTimes: moment.Duration[] = [];
+    let currentFailure: CdPipelineRun | undefined;
+    pipelinesWithName.forEach((p: CdPipelineRun) => {
+      if(currentFailure !== undefined) {
+        if(p.result === "failed") {
+          // continue
+        } else if (p.result === "success") {
+          const mttr: moment.Duration = moment.duration(moment(p.dateTime, "YYYY-MM-DD HH:mm:ss").diff(moment(currentFailure.dateTime, "YYYY-MM-DD HH:mm:ss")));
+          restoreTimes.push(mttr);
+          // reset
+          currentFailure = undefined;
+        }
+      } else {
+        if(p.result === "failed") {
+          currentFailure = p;
+        }
+      }
+    });
+
+    const avgRestoreInMinutes = _.meanBy(restoreTimes, duration => {
+      return duration.asMinutes();
+    });
+    return {
+      mttr: moment.duration(avgRestoreInMinutes, "minutes"),
+      pipelineName: pipelineName
+    }
+    
+  }
+
 }
 export class CdStabilityCalculator {
   constructor(private pipelineReader: CdPipelineReader) {}
@@ -95,6 +149,7 @@ export class CdStabilityCalculator {
     const pipelines = await this.pipelineReader.loadPipelines(query);
 
     const data = new CdStabilityData(pipelines);
+
     const failureByPipeline = data.pipelineFailureRate;
     console.log(`Failure rate of pipelines is ${CdStabilityCalculator.colorFn(failureByPipeline.failureRate)(`${failureByPipeline.failureRate}%`)}`
         +` (${failureByPipeline.numberOfFailed}/${failureByPipeline.numberOfFailed+failureByPipeline.numberOfSuccess})`);
@@ -104,6 +159,11 @@ export class CdStabilityCalculator {
         console.log(`${CdStabilityCalculator.colorFn(failureRate.failureRate)(`${failureRate.failureRate}%\t`)} `
             +`${failureRate.numberOfFailed}/${failureRate.numberOfSuccess + failureRate.numberOfFailed}`
             +`\t\t${failureRate.name}`);
+    });
+
+    const pipelineMttrs = _.orderBy(data.pipelineMttrs, "pipelineName");
+    pipelineMttrs.forEach(mttr => {
+      console.log(`${mttr.mttr ? mttr.mttr!.humanize() : `n/a`}\t${mttr.pipelineName}\t${mttr.mttrComment ? `(${mttr.mttrComment})` : ``}`);
     });
 
     const lines = _.orderBy(pipelines, "dateTime")

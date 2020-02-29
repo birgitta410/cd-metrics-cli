@@ -296,7 +296,7 @@ describe("GitlabClient", () => {
       const actualPipelineRuns = await createApi().loadPipelines(query);
 
       expect(actualPipelineRuns.length).toBe(2);
-      expect(actualPipelineRuns[0].pipelineName).toBe("build:test");
+      expect(actualPipelineRuns[0].pipelineName).toBe("master>>build:test");
       expect(pipelinesApiMock.all).toHaveBeenCalled();
       expect(pipelinesApiMock.showJobs).toHaveBeenCalledTimes(2);
 

@@ -189,6 +189,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       jobName: gitlabJobRun.name,
       stageName: gitlabJobRun.stage,
       result: gitlabJobRun.status,
+      ref: gitlabJobRun.ref,
       dateTime: CdThroughputCalculator.normalizeTime(gitlabJobRun.finished_at)
     };
   }
@@ -196,7 +197,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
   private constructPipelineName(jobRuns: CdJobRun[]) {
     // Gitlab does not have a concept of names for pipelines, but this is useful/necessary to group pipelines for the MTTR
     const stageNames = _.uniq(jobRuns.map(job => {return job.stageName;}));
-    return stageNames.join(":");
+    return `${jobRuns.length > 0 ? `${jobRuns[0].ref}>>` : ``}${stageNames.join(":")}`;
   }
 
   private toCdPipelineRun(gitlabPipelineRun:any, jobRuns: CdJobRun[]): CdPipelineRun {

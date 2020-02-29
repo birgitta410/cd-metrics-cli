@@ -15,7 +15,8 @@ export interface CdPipelineComponent {
 
 export interface CdJobRun extends CdPipelineComponent {
     jobName: string,
-    stageName: string
+    stageName: string,
+    ref: string
 }
 
 export interface CdPipelineRun extends CdPipelineComponent {
@@ -34,6 +35,12 @@ export interface CdFailureRate {
     numberOfSuccess: number,
     numberOfFailed: number,
     name?: string
+}
+
+export interface CdMttr {
+    mttr?: moment.Duration,
+    mttrComment?: string,
+    pipelineName: string
 }
 
 export interface CdPipelineReader {
