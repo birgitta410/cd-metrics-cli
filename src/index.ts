@@ -2,9 +2,9 @@ import yargs from "yargs";
 import moment = require("moment");
 
 import { Gitlab } from "gitlab";
-import { GitlabClient, GitlabConfig } from "./GitlabClient";
-import { CdEventsWriter } from './CdEventsWriter';
-import { CdChangeService } from './CdChangeService';
+import { GitlabClient, GitlabConfig } from "./sources/GitlabClient";
+import { CdEventsWriter } from './throughput/CdEventsWriter';
+import { CdChangeService } from './throughput/CdChangeService';
 
 const createGitlabClient = (projectId: number, host:string, token:string) => {
   const api = new Gitlab({

@@ -1,5 +1,7 @@
 import moment = require("moment");
 
+
+// Determining change and deployment events
 export interface CdEventsQuery {
   since: moment.Moment;
   until: moment.Moment;
@@ -24,6 +26,8 @@ export interface CdDeploymentEvent extends CdEvent {
   jobName: string,
   url?: string
 };
+
+
 
 export interface CdChangeReference {
   name: string,

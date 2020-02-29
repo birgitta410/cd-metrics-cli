@@ -1,6 +1,6 @@
 import moment = require('moment');
-import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '@/Model';
-import { CdChangeService } from '@/CdChangeService';
+import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '@/throughput/Model';
+import { CdChangeService } from '@/throughput/CdChangeService';
 
 class CdChangeReaderMock implements CdChangeReader {
   loadTags(tagsPattern: string): Promise<CdChangeReference[]> {

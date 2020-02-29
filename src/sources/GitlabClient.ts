@@ -4,9 +4,9 @@ import chalk from "chalk";
 
 import { Gitlab } from "gitlab";
 
-import { RequestHelper } from "./RequestHelper";
-import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "./Model";
-import { CdEventsWriter } from "./CdEventsWriter";
+import { RequestHelper } from "../RequestHelper";
+import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "../throughput/Model";
+import { CdEventsWriter } from "../throughput/CdEventsWriter";
 
 export class GitlabConfig {
   constructor(public url: string, public projectId: number) {}
