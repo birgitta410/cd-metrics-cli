@@ -31,56 +31,44 @@ export class CdEventsWriter {
     private deploymentReader: CdDeploymentReader
   ) {}
 
-  private async getTimelineForReleaseReferences(query: CdEventsQuery) {
-    const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
-
-    console.log(
-      `${chalk.cyanBright(
-        `>> Determined ${changeList.length} change events\n`
-      )}`
-    );
-
-    const deploymentList: CdEvent[] = await this.deploymentReader.loadProductionDeployments(query);
-    console.log(
-      `${chalk.cyanBright(
-        `>> Determined ${deploymentList.length} production deployment events\n`
-      )}`
-    );
-
+  private async getTimelineForReleaseReferences(
+    changeList: CdEvent[], 
+    deploymentList: CdEvent[]) {
+    
     const chronologicalChanges = _.sortBy(changeList, "dateTime");
     const chronologicalDeployments = _.sortBy(deploymentList, "dateTime");
 
     let result: CdEvent[] = [];
-    // TODO: Or, put all the changes and deployments for one ref into a list and sort that by time? And then "insert" that in the overall list?
+    const refsIncluded: string[] = [];
+
     chronologicalChanges.map(change => {
-      result.push(change);
       if(change.ref) {
-        const deploymentsForRef = chronologicalDeployments.filter(deployment => {
-          return deployment.ref === change.ref;
-        });
-        result = result.concat(deploymentsForRef);
+        (function createChronologicalListForRef() {
+          if(! refsIncluded.includes(change.ref)) {
+            const changesForRef = chronologicalChanges.filter(otherChange => {
+              return otherChange.ref === change.ref;
+            });
+            const deploymentsForRef = chronologicalDeployments.filter(deployment => {
+              return deployment.ref === change.ref;
+            });
+            const allEventsForRef = _.sortBy(changesForRef.concat(deploymentsForRef), "dateTime");
+            console.log(`Adding ${allEventsForRef.length} events for ${change.ref}`);
+            result = result.concat(allEventsForRef);
+            refsIncluded.push(change.ref);
+          }
+        })();
+        
+      } else {
+        result.push(change);
       }
     })
 
     return result;
   }
 
-  private async getChronologicalTimelineFromBranch(query: CdEventsQuery) {
-    const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
-
-    console.log(
-      `${chalk.cyanBright(
-        `>> Determined ${changeList.length} change events\n`
-      )}`
-    );
-
-    const deploymentList: CdEvent[] = await this.deploymentReader.loadProductionDeployments(query);
-    console.log(
-      `${chalk.cyanBright(
-        `>> Determined ${deploymentList.length} production deployment events\n`
-      )}`
-    );
-
+  private async getChronologicalTimelineFromBranch(changeList: CdEvent[], 
+    deploymentList: CdEvent[]) {
+    
     return _.chain(changeList)
       .union(deploymentList)
       .sortBy("dateTime")
@@ -90,10 +78,24 @@ export class CdEventsWriter {
   public async getChangesAndDeploymentsTimeline(
     query: CdEventsQuery
   ): Promise<any[]> {
+    const changeList: CdEvent[] = await this.changeReader.loadChanges(query);
+
+    console.log(
+      `${chalk.cyanBright(
+        `>> Determined ${changeList.length} change events\n`
+      )}`
+    );
+
+    const deploymentList: CdEvent[] = await this.deploymentReader.loadProductionDeployments(query);
+    console.log(
+      `${chalk.cyanBright(
+        `>> Determined ${deploymentList.length} production deployment events\n`
+      )}`
+    );
     if(query.branch.startsWith("^") || query.tags) {
-      return this.getTimelineForReleaseReferences(query);
+      return this.getTimelineForReleaseReferences(changeList, deploymentList);
     } else {
-      return this.getChronologicalTimelineFromBranch(query);
+      return this.getChronologicalTimelineFromBranch(changeList, deploymentList);
     }
   }
 
@@ -151,6 +153,8 @@ export class CdEventsWriter {
         event.dateTime
       }\t${event.isMergeCommit || ""}\t${event.result || ""}\t${event.ref || ""}`;
     });
+
+    console.log(`Output number of lines: ${output.length}`);
 
     if (listEventsUserPrompt.value === "yes") {
       output.forEach(line => {

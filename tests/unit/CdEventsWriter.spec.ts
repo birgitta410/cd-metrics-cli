@@ -129,14 +129,69 @@ describe("CdEventsWriter", () => {
         const changes = events.filter(e => e.eventType === "change");
         expect(changes.length).toBe(4);
 
-        expect(events[0].eventType).toBe("change");
-        expect(events[1].eventType).toBe("change");
-        expect(events[2].eventType).toBe("change");
-        expect(events[3].eventType).toBe("deployment");
-        expect(events[4].eventType).toBe("change");
+        expect(events[0]).toBe(changeEvent1);
+        expect(events[1]).toBe(changeEvent2);
+        expect(events[2]).toBe(changeEvent3Tagged);
+        expect(events[3]).toBe(deploymentEvent);
+        expect(events[4]).toBe(changeEvent4);
         
         const deployments = events.filter(e => e.eventType === "deployment");
         expect(deployments.length).toBe(1);
+
+      });
+    });
+
+    describe("for releasing from release branches", () => {
+      test("should put release branch deployments in a grouping with branch changes", async () => {
+        
+        const changeEvent1: any = someChangeEvent();
+        changeEvent1.dateTime = "2020-01-31T12:35:00.000+01:00";
+        const changeEvent2: any = someChangeEvent();
+        changeEvent2.dateTime = "2020-01-31T13:35:00.000+01:00";
+        
+        const changeEvent3OnBranch: any = someChangeEvent();
+        changeEvent3OnBranch.ref = "release/4.3.0";
+        changeEvent3OnBranch.dateTime = "2020-01-31T14:35:00.000+01:00";
+        const deploymentEvent: any = someDeploymentEvent();
+        deploymentEvent.name = "some-deployment-job";
+        deploymentEvent.dateTime = "2020-01-31T14:45:00.000+01:00";
+        deploymentEvent.ref = "release/4.3.0";
+        const changeEvent4OnBranch: any = someChangeEvent();
+        changeEvent4OnBranch.dateTime = "2020-01-31T14:50:00.000+01:00";
+        changeEvent4OnBranch.ref = "release/4.3.0";
+        const deploymentEvent2: any = someDeploymentEvent();
+        deploymentEvent2.name = "some-deployment-job";
+        deploymentEvent2.dateTime = "2020-01-31T14:55:00.000+01:00";
+        deploymentEvent2.ref = "release/4.3.0";
+        
+        const changeEvent5: any = someChangeEvent();
+        changeEvent5.dateTime = "2020-01-31T14:40:00.000+01:00";
+        
+        deploymentReaderMock.loadProductionDeployments.mockResolvedValue([
+          deploymentEvent, deploymentEvent2
+        ]);
+        changeReaderMock.loadChanges.mockResolvedValue([
+          changeEvent1, changeEvent2, changeEvent3OnBranch, changeEvent4OnBranch, changeEvent5
+        ]);
+
+        const eventsWriter = new CdEventsWriter(changeReaderMock, deploymentReaderMock);
+        const events = await eventsWriter.getChangesAndDeploymentsTimeline({
+          since: moment(),
+          until: moment(),
+          branch: "master",
+          tags: "^4",
+          prodDeploymentJobNames: [deploymentEvent.name]
+        });
+
+        expect(events.length).toBe(7);
+        
+        expect(events[0]).toBe(changeEvent1);
+        expect(events[1]).toBe(changeEvent2);
+        expect(events[2]).toBe(changeEvent3OnBranch);
+        expect(events[3]).toBe(deploymentEvent);
+        expect(events[4]).toBe(changeEvent4OnBranch);
+        expect(events[5]).toBe(deploymentEvent2);
+        expect(events[6]).toBe(changeEvent5);
 
       });
     });
