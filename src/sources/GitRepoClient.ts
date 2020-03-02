@@ -1,4 +1,5 @@
 import nodegit from "nodegit";
+import moment from "moment";
 import * as _ from "lodash";
 import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '../throughput/Model';
 
@@ -41,6 +42,17 @@ export class GitRepoClient implements CdChangeReader {
         return repo.getTagByName(tagRef.name())
       }));
     }
+
+    private toGitCommit(commit: nodegit.Commit): GitCommit {
+      const isMergeCommitCandidate = commit.parents().length > 1;
+      const authoringTimestamp = commit.author().when().time();
+      return {
+        short_id: commit.sha().substr(0, 8),
+        created_at: moment.unix(authoringTimestamp).toISOString(),
+        title: commit.message(),
+        is_merge: isMergeCommitCandidate
+      };
+    }
   
     private loadBatchOfCommits(refName: string, numCommits: number): Promise<GitCommit[]> {
       return this.createRevwalk(refName)
@@ -49,13 +61,7 @@ export class GitRepoClient implements CdChangeReader {
         })
         .then((commits: nodegit.Commit[]) => {
           return commits.map(commit => {
-            const isMergeCommitCandidate = commit.parents().length > 1;
-            return {
-              short_id: commit.sha().substr(0, 8),
-              created_at: commit.date().toISOString(),
-              title: commit.message(),
-              is_merge: isMergeCommitCandidate
-            };
+            return this.toGitCommit(commit);
           });
         });
     }

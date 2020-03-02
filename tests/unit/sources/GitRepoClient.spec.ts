@@ -2,9 +2,14 @@ import nodegit from "nodegit";
 import moment = require('moment');
 import { GitRepoClient } from '@/sources/GitRepoClient';
 
+/**
+ * Integration test with test git repo, added as git submodule
+ */
 describe("GitRepoClient", () => {
 
   const testRepoPath = `${process.cwd()}/tests/test-repo`;
+
+  const masterPointingAtSha = "2acc03db";
 
   const checkoutRefInTestRepo = async (refName: string) => {
     return nodegit.Repository.open(testRepoPath).then(function(repo:nodegit.Repository) {
@@ -12,35 +17,58 @@ describe("GitRepoClient", () => {
     });
   }
 
+  const loadMasterCommitsFromTestRepo = async () => {
+    return new GitRepoClient(testRepoPath).loadCommitsForBranch({
+      since: moment(),
+      until: moment(),
+      branch: "master",
+      prodDeploymentJobNames: ["does-not-matter"]
+    }, {
+      name: "master", commit: masterPointingAtSha
+    });
+  }
+
   describe("loadCommitsForBranch", () => {
 
     test("should get all commits for the specified branch", async () => {
 
-      // checking out a branch other than master to make sure it really gets
-      // the master commits
+      // checking out a branch other than master to make sure the function
+      // really gets the master commits and not the branch commits
       await checkoutRefInTestRepo("some-branch");
 
-      const actualCommits = await new GitRepoClient(testRepoPath).loadCommitsForBranch({
-        since: moment(),
-        until: moment(),
-        branch: "master",
-        prodDeploymentJobNames: ["does-not-matter"]
-      }, {
-        name: "master", commit: "c28b8373"
+      const actualCommits = await loadMasterCommitsFromTestRepo();
+
+      expect(actualCommits.length).toBe(3);
+
+      const expectedHeadSha = masterPointingAtSha;
+      const expectedCommitSha2 = "90199a5b";
+      const expectedHeadCommit = actualCommits.find(commit => { return commit.revision === expectedHeadSha; });
+      const expectedCommit2 = actualCommits.find(commit => { return commit.revision === expectedCommitSha2; });
+
+      expect(expectedHeadCommit).toBeDefined();
+      expect(expectedHeadCommit!.ref).toBe("master");
+      expect(expectedHeadCommit!.isMergeCommit).toBe(false);
+
+      expect(expectedCommit2).toBeDefined();
+      expect(expectedCommit2!.ref).toBe("");
+      expect(moment(expectedCommit2!.dateTime).valueOf()).toBe(moment("2020-02-10T14:38:25.000Z").valueOf());
+      expect(expectedCommit2!.isMergeCommit).toBe(false);
+      
+    });
+
+    test("should get the original author date and time (not the commit date and time)", async () => {
+      const cherryPickedCommitShaOnMaster = "2acc03db";
+      const cherryPickOriginalAuthorTime = "Fri Feb 28 10:45:09 2020 +0100";
+
+      const actualCommits = await loadMasterCommitsFromTestRepo();
+      const cherryPickedCommit = actualCommits.find(commit => {
+        return commit.revision === cherryPickedCommitShaOnMaster;
       });
 
-      expect(actualCommits.length).toBe(2);
+      expect(cherryPickedCommit).toBeDefined();
+      expect(moment(cherryPickedCommit!.dateTime).valueOf())
+        .toBe(moment(cherryPickOriginalAuthorTime).valueOf());
 
-      expect(actualCommits[0].revision).toBe("c28b8373");
-      expect(actualCommits[0].ref).toBe("master");
-      expect(moment(actualCommits[0].dateTime).valueOf()).toBe(moment("2020-02-10T14:50:48.000Z").valueOf());
-      expect(actualCommits[0].isMergeCommit).toBe(false);
-
-      expect(actualCommits[1].revision).toBe("90199a5b");
-      expect(actualCommits[1].ref).toBe("");
-      expect(moment(actualCommits[1].dateTime).valueOf()).toBe(moment("2020-02-10T14:38:25.000Z").valueOf());
-      expect(actualCommits[1].isMergeCommit).toBe(false);
-      
     });
 
   });
@@ -52,7 +80,7 @@ describe("GitRepoClient", () => {
 
       expect(actualBranches.length).toBe(3);
       expect(actualBranches[0].name).toBe("master");
-      expect(actualBranches[0].commit).toContain("c28b8373");
+      expect(actualBranches[0].commit).toContain(masterPointingAtSha);
       expect(actualBranches[1].name).toBe("some-branch");
       expect(actualBranches[1].commit).toBe("e65e3001bc8d02dee795600caa83cecff062a93f");
       

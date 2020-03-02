@@ -6,6 +6,10 @@ export class TimeUtil {
     return moment(time).format("YYYY-MM-DD HH:mm:ss");
   }
 
+  public static normalizedString(dateTime: moment.Moment): string {
+    return dateTime.format("YYYY-MM-DD HH:mm:ss");
+  }
+
   public static normalizedNow(): string {
     return moment().format("YYYY-MM-DD HH:mm:ss");
   }
