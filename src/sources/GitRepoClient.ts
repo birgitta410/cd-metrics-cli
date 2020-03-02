@@ -93,6 +93,7 @@ export class GitRepoClient implements CdChangeReader {
       const references = allBranches.map(branch => {
         return {
           name: branch.shorthand().replace("origin/", ""),
+          originalName: branch.name(),
           commit: branch.target().tostrS()
         };
       });
@@ -101,7 +102,7 @@ export class GitRepoClient implements CdChangeReader {
     }
 
     public async loadCommitsForBranch(query: CdEventsQuery, branch: CdChangeReference): Promise<CdChangeEvent[]> {
-      const gitCommits = await this.loadBatchOfCommits(query.branch, 100);
+      const gitCommits = await this.loadBatchOfCommits(branch.originalName || branch.name, 10);
       return gitCommits.map(gitCommit => {
         return {
           eventType: "change",

@@ -21,7 +21,8 @@ export interface CdDeploymentEvent extends CdEvent {
 
 export interface CdChangeReference {
   name: string,
-  commit: string
+  commit: string,
+  originalName?: string
 }
 
 export interface CdEventsQuery {
