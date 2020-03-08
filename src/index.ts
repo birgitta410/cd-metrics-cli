@@ -6,6 +6,7 @@ import { GitlabClient, GitlabConfig } from "./sources/GitlabClient";
 import { CdThroughputCalculator } from './throughput/CdThroughputCalculator';
 import { CdChangeService } from './throughput/CdChangeService';
 import { CdStabilityCalculator } from './stability/CdStabilityCalculator';
+import { GitRepoClient } from './sources/GitRepoClient';
 
 const createGitlabClient = (projectId: number, host:string, token:string) => {
   const api = new Gitlab({
@@ -28,6 +29,14 @@ const withProjectIdOption = (yargs: any) => {
       type: "number",
       demand: true,
       describe: "The Gitlab project ID"
+    });
+};
+
+const withRepoPathOption = (yargs: any) => {
+  return yargs
+    .option("repo", {
+      type: "string",
+      describe: "Path to a local git repository to use as source of changes"
     });
 };
 
@@ -96,6 +105,7 @@ const withDeploymentJobsOption = (yargs: any) => {
 yargs
   .command("throughput", "list changes and deployments", (yargs) => {
       withProjectIdOption(yargs);
+      withRepoPathOption(yargs);
       withReleaseBranchOption(yargs);
       withReleaseTagsOption(yargs);
       withGitlabOptions(yargs);
@@ -109,10 +119,13 @@ yargs
     const since = moment(argv.since);
     const until = argv.until === "today" ? moment() : moment(argv.until);
 
+    // const repoClient = new GitRepoClient(argv.repo);
+    
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
+    
     const changeService = new CdChangeService(gitlabClient);
     const writer = new CdThroughputCalculator(changeService, gitlabClient);
-    await writer.printChangesAndDeployments(argv.projectId, argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
+    await writer.printChangesAndDeployments(argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
     
   })
   .command("stability", "calculate failure rate", (yargs) => {

@@ -88,7 +88,6 @@ export class CdThroughputCalculator {
   }
 
   public async printChangesAndDeployments(
-    projectId: number,
     releaseBranch: string,
     releaseTags: string,
     deploymentJobs: string[],
@@ -103,9 +102,7 @@ export class CdThroughputCalculator {
       prodDeploymentJobNames: deploymentJobs
     };
 
-    console.log(`Getting changes and deployments for project ${chalk.cyanBright(
-      projectId
-    )},
+    console.log(`Getting changes and deployments for your project,
       focusing on changes and pipelines on branch(es)/tag(s) ${chalk.cyanBright(
         gitlabQuery.tags || gitlabQuery.branch
       )},
