@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
+DIR=$(pwd)
 repoRemotePath=""
 repoName=""
 
@@ -8,7 +9,6 @@ get_repo_argument() {
     repoValueNext=0    
     for arg in "$@"
     do
-        echo "Arg: $arg"
         if [ "$repoValueNext" -eq 1 ]; then
             repoRemotePath=$arg
             repoValueNext=0
@@ -39,9 +39,8 @@ clone_or_update_repo() {
         mkdir -p $localRepoPath
         cd "repos"
         git clone "${repoRemotePath}"
-        cd ..
     fi
-    
+    cd $DIR
 }
 
 prepare_repo() {
@@ -58,7 +57,7 @@ prepare_repo() {
 if [ -z "$@" ]; then
     npm run cli -- --help
 else
-    # prepare_repo "$@"
+    prepare_repo "$@"
     npm run cli -- "$@"
 fi
 

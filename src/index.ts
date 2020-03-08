@@ -102,6 +102,16 @@ const withDeploymentJobsOption = (yargs: any) => {
   });
 };
 
+const localRepoPathFromRemote = (remotePath: string): string | undefined => {
+  if(remotePath) {
+    const repoNameMatch = remotePath.match(/\/([^\/]*)\.git/);
+    if(repoNameMatch && repoNameMatch.length > 0) {
+      const repoName = repoNameMatch[1];
+      return `./repos/${repoName}`;
+    }
+  }
+}
+
 yargs
   .command("throughput", "list changes and deployments", (yargs) => {
       withProjectIdOption(yargs);
@@ -119,11 +129,19 @@ yargs
     const since = moment(argv.since);
     const until = argv.until === "today" ? moment() : moment(argv.until);
 
-    // const repoClient = new GitRepoClient(argv.repo);
-    
     const gitlabClient = createGitlabClient(argv.projectId, gitlabUrl, gitlabToken);
+
+    let changeService: CdChangeService;
+    const localRepoPath = localRepoPathFromRemote(argv.repo);
+    if(localRepoPath) {
+      const repoClient = new GitRepoClient(localRepoPath);
+      console.log(`Using locally cloned repo at ${localRepoPath} to determine changes`);
+      changeService = new CdChangeService(repoClient);
+    } else {
+      console.log(`Using Gitlab API to determine changes`);
+      changeService = new CdChangeService(gitlabClient);
+    }
     
-    const changeService = new CdChangeService(gitlabClient);
     const writer = new CdThroughputCalculator(changeService, gitlabClient);
     await writer.printChangesAndDeployments(argv.releaseBranch, argv.releaseTags, argv.deploymentJobs, since, until);
     

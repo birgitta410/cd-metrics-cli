@@ -69,7 +69,6 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
   }
 
   public findProdDeploymentJob(allJobs: any[], pipelineId: string, prodDeploymentJobNameCandidates: string[]) : any | undefined {
-    
     const deploymentCandidates = _.filter(allJobs, (j: any) => {
       return prodDeploymentJobNameCandidates.includes(j.name);
     });
