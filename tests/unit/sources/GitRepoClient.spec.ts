@@ -78,7 +78,7 @@ describe("GitRepoClient", () => {
 
       const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("*");
 
-      expect(actualBranches.length).toBe(3);
+      expect(actualBranches.length).toBe(4);
       expect(actualBranches[0].name).toBe("master");
       expect(actualBranches[0].commit).toContain(masterPointingAtSha);
       expect(actualBranches[1].name).toBe("some-branch");
@@ -90,7 +90,15 @@ describe("GitRepoClient", () => {
 
       const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("some*");
 
-      expect(actualBranches.length).toBe(2);
+      expect(actualBranches.length).toBe(3);
+      
+    });
+
+    test("should get master branch for pattern 'master'", async () => {
+
+      const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("master");
+
+      expect(actualBranches.length).toBe(1);
       
     });
 

@@ -70,6 +70,9 @@ export class GitRepoClient implements CdChangeReader {
       if(pattern === "*") {
         return references;
       }
+      if(pattern === "master") {
+        pattern = "^master$";
+      }
       const regex = new RegExp(`${pattern}`, "g");
       return references.filter(ref => {
         const match = ref.name.match(regex);
@@ -97,7 +100,7 @@ export class GitRepoClient implements CdChangeReader {
           commit: branch.target().tostrS()
         };
       });
-      
+
       return this.filterReferences(references, branchPattern);
     }
 
