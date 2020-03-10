@@ -8,6 +8,7 @@ export interface CdEvent {
 }
 
 export interface CdChangeEvent extends CdEvent {
+  authorDateTime: string,
   isMergeCommit: boolean
 };
 

@@ -24,7 +24,6 @@ describe("GitRepoClient", () => {
 
   const loadMasterCommitsFromTestRepo = async (since: moment.Moment, until: moment.Moment) => {
     const branches = await repo.loadBranches("master");
-    console.log(`Master branch: ${JSON.stringify(branches[0])}`)  
     return repo.loadCommitsForBranch({
       since: since,
       until: until,
@@ -98,9 +97,10 @@ describe("GitRepoClient", () => {
       
     });
 
-    test("should get the original author date and time (not the commit date and time)", async () => {
+    test("should get the original author date and time", async () => {
       const cherryPickedCommitShaOnMaster = "2acc03db";
       const cherryPickOriginalAuthorTime = "Fri Feb 28 10:45:09 2020 +0100";
+      const cherryPickTime = "Mon Mar 2 10:41:51 2020 +0100";
 
       const actualCommits = await loadMasterCommitsFromTestRepo(MASTER_COMMITS_SINCE, MASTER_COMMITS_UNTIL);
       const cherryPickedCommit = actualCommits.find(commit => {
@@ -108,8 +108,10 @@ describe("GitRepoClient", () => {
       });
 
       expect(cherryPickedCommit).toBeDefined();
-      expect(moment(cherryPickedCommit!.dateTime).valueOf())
+      expect(moment(cherryPickedCommit!.authorDateTime).valueOf())
         .toBe(moment(cherryPickOriginalAuthorTime).valueOf());
+      expect(moment(cherryPickedCommit!.dateTime).valueOf())
+        .toBe(moment(cherryPickTime).valueOf());
 
     });
 
@@ -130,9 +132,11 @@ describe("GitRepoClient", () => {
 
     test("should get all branches matching the specified naming pattern", async () => {
 
-      const actualBranches = await repo.loadBranches("some*");
+      const actualBranches = await repo.loadBranches("some-branch");
 
-      expect(actualBranches.length).toBe(3);
+      expect(actualBranches.length).toBe(2);
+      expect(actualBranches.find(b => b.name.includes("some-branch"))).toBeDefined();
+      expect(actualBranches.find(b => b.name.includes("some-branch-2"))).toBeDefined();
       
     });
 

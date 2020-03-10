@@ -4,6 +4,7 @@ import moment = require('moment');
 import { CdThroughputCalculator } from '@/throughput/CdThroughputCalculator';
 import { CdChangeReference } from '@/throughput/Model';
 import { CdStabilityQuery } from '@/stability/Model';
+import { TimeUtil } from '@/TimeUtil';
 
 jest.mock("gitlab");
 
@@ -167,7 +168,7 @@ describe("GitlabClient", () => {
 
       expect(actualDeploymentJobs[0].eventType).toBe("deployment");
       expect(actualDeploymentJobs[0].revision).toBe(deploymentJob.commit.short_id);
-      expect(CdThroughputCalculator.normalizeTime(actualDeploymentJobs[0].dateTime)).toBe(CdThroughputCalculator.normalizeTime(deploymentJob.finished_at));
+      expect(TimeUtil.normalizeTime(actualDeploymentJobs[0].dateTime)).toBe(TimeUtil.normalizeTime(deploymentJob.finished_at));
       expect(actualDeploymentJobs[0].result).toBe(deploymentJob.status);
       expect(actualDeploymentJobs[0].jobName).toBe(deploymentJob.name);
 

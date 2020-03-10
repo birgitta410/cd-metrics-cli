@@ -147,6 +147,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
       eventType: "change",
       revision: gitlabCommit.short_id,
       dateTime: TimeUtil.normalizeTime(gitlabCommit.created_at),
+      authorDateTime: TimeUtil.normalizeTime(gitlabCommit.created_at),
       isMergeCommit: isMergeCommit
     };
   }
