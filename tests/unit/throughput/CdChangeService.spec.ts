@@ -103,8 +103,36 @@ describe("CdChangeService", () => {
         commit
       ]);
 
+      const aBranch: CdChangeReference = someBranch();
+      const anotherBranch: CdChangeReference = someBranch();
+      changeReaderMock.loadBranches.mockResolvedValue([
+        aBranch, anotherBranch
+      ]);
+
+      const query = {
+        since: moment(),
+        until: moment(),
+        branch: "release-*",
+        prodDeploymentJobNames: ["does-not-matter"]
+      };
+      const actualCommits = await createService().loadChanges(query);
+
+      expect(actualCommits.length).toBe(0);
+
+    });
+
+    test("should return changes only for master even if there are branches that just contain the string 'master'", async () => {
+      // Explicitly not supporting release branches right now
+      // - commits change their SHAs as they get merged across branches, so there's not way to properly determine what
+      //   change gets deployed when
+      const commit = someCommit();
+      changeReaderMock.loadCommitsForBranch.mockResolvedValue([
+        commit
+      ]);
+
       const theMasterBranch: CdChangeReference = masterBranch();
       const anotherBranch: CdChangeReference = someBranch();
+      anotherBranch.name = "some-branch-with-master-in-the-name";
       changeReaderMock.loadBranches.mockResolvedValue([
         theMasterBranch, anotherBranch
       ]);
@@ -117,7 +145,7 @@ describe("CdChangeService", () => {
       };
       const actualCommits = await createService().loadChanges(query);
 
-      expect(actualCommits.length).toBe(0);
+      expect(actualCommits.length).toBe(1);
 
     });
 

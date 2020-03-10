@@ -25,7 +25,10 @@ export class CdChangeService {
            tags = await this.reader.loadTags(query.tags);
         }
         
-        const branches = await this.reader.loadBranches(query.branch);
+        let branches = await this.reader.loadBranches(query.branch);
+        if (branches.length !== 1 && query.branch === "master") {
+          branches = branches.filter(b => b.name === "master");
+        }
         if (branches.length !== 1) {
           console.log(chalk.red(`ERROR: Expecting exactly one branch named '${query.branch}', but found ${branches.length}`));
           return [];
