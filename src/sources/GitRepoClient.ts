@@ -2,6 +2,7 @@ import nodegit from "nodegit";
 import moment from "moment";
 import * as _ from "lodash";
 import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '../throughput/Model';
+import { TimeUtil } from '../TimeUtil';
 
 interface GitCommit {
   short_id: string,
@@ -43,21 +44,27 @@ export class GitRepoClient implements CdChangeReader {
       }));
     }
 
+    private authoringTime(commit: nodegit.Commit): moment.Moment {
+      const authoringTimestamp = commit.author().when().time();
+      return moment.unix(authoringTimestamp);
+    }
+
     private toGitCommit(commit: nodegit.Commit): GitCommit {
       const isMergeCommitCandidate = commit.parents().length > 1;
-      const authoringTimestamp = commit.author().when().time();
       return {
         short_id: commit.sha().substr(0, 8),
-        created_at: moment.unix(authoringTimestamp).toISOString(),
+        created_at: this.authoringTime(commit).toISOString(),
         title: commit.message(),
         is_merge: isMergeCommitCandidate
       };
     }
   
-    private loadBatchOfCommits(refName: string, numCommits: number): Promise<GitCommit[]> {
+    private loadBatchOfCommits(refName: string, since: moment.Moment): Promise<GitCommit[]> {
       return this.createRevwalk(refName)
         .then(revWalk => {
-          return revWalk.getCommits(numCommits);
+          return revWalk.getCommitsUntil((commit: nodegit.Commit) => {
+            return this.authoringTime(commit).isAfter(since);
+          });
         })
         .then((commits: nodegit.Commit[]) => {
           return commits.map(commit => {
@@ -105,12 +112,16 @@ export class GitRepoClient implements CdChangeReader {
     }
 
     public async loadCommitsForBranch(query: CdEventsQuery, branch: CdChangeReference): Promise<CdChangeEvent[]> {
-      const gitCommits = await this.loadBatchOfCommits(branch.originalName || branch.name, 10000);
-      return gitCommits.map(gitCommit => {
+      const gitCommitsSince = await this.loadBatchOfCommits(branch.originalName || branch.name, query.since);
+      const gitCommitsInTimeFrame = gitCommitsSince.filter((commit: GitCommit) => {
+        return moment(commit.created_at).isBefore(query.until)
+          && moment(commit.created_at).isAfter(query.since); // filter out potentially one overincluded commit
+      });
+      return gitCommitsInTimeFrame.map((gitCommit: GitCommit) => {
         return {
           eventType: "change",
           revision: gitCommit.short_id,
-          dateTime: gitCommit.created_at,
+          dateTime: TimeUtil.normalizeTime(gitCommit.created_at),
           isMergeCommit: gitCommit.is_merge,
           ref: branch.commit === gitCommit.short_id ? branch.name : ""
         };

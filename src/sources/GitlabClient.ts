@@ -190,8 +190,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const commits = await <any[]><unknown>this.api.Commits.all(this.projectId, {
       refName: branchName,
       since: TimeUtil.gitlabApiDateString(query.since),
-      until: TimeUtil.gitlabApiDateString(query.until),
-      all: true
+      until: TimeUtil.gitlabApiDateString(query.until)
     });
     return _.chain(commits)
       .flatten()
