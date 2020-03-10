@@ -105,7 +105,7 @@ export class GitRepoClient implements CdChangeReader {
     }
 
     public async loadCommitsForBranch(query: CdEventsQuery, branch: CdChangeReference): Promise<CdChangeEvent[]> {
-      const gitCommits = await this.loadBatchOfCommits(branch.originalName || branch.name, 10);
+      const gitCommits = await this.loadBatchOfCommits(branch.originalName || branch.name, 10000);
       return gitCommits.map(gitCommit => {
         return {
           eventType: "change",
