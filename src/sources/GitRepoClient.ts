@@ -6,6 +6,7 @@ import { TimeUtil } from '../TimeUtil';
 
 interface GitCommit {
   short_id: string,
+  id: string,
   created_at: string,
   title: string,
   is_merge: boolean,
@@ -19,8 +20,10 @@ export class GitRepoClient implements CdChangeReader {
       return nodegit.Repository.open(this.pathToRepo).then(function(repo:nodegit.Repository) {
         return repo.checkoutBranch(refName).then(() => {
           const revWalk = repo.createRevWalk();
-          revWalk.pushHead(); // Point to the latest commit
+          revWalk.pushRef(refName); // Point to the latest commit on the branch
           return revWalk;
+        }).catch((error) => {
+          console.log(`ERROR ${error}`);
         });
       });
     }
@@ -53,6 +56,7 @@ export class GitRepoClient implements CdChangeReader {
       const isMergeCommitCandidate = commit.parents().length > 1;
       return {
         short_id: commit.sha().substr(0, 8),
+        id: commit.sha(),
         created_at: this.authoringTime(commit).toISOString(),
         title: commit.message(),
         is_merge: isMergeCommitCandidate
@@ -62,9 +66,10 @@ export class GitRepoClient implements CdChangeReader {
     private loadBatchOfCommits(refName: string, since: moment.Moment): Promise<GitCommit[]> {
       return this.createRevwalk(refName)
         .then(revWalk => {
-          return revWalk.getCommitsUntil((commit: nodegit.Commit) => {
-            return this.authoringTime(commit).isAfter(since);
-          });
+          return revWalk.getCommits(1000);
+          // return revWalk.getCommitsUntil((commit: nodegit.Commit) => {
+          //   return this.authoringTime(commit).isAfter(since);
+          // });
         })
         .then((commits: nodegit.Commit[]) => {
           return commits.map(commit => {
@@ -117,13 +122,14 @@ export class GitRepoClient implements CdChangeReader {
         return moment(commit.created_at).isBefore(query.until)
           && moment(commit.created_at).isAfter(query.since); // filter out potentially one overincluded commit
       });
+      
       return gitCommitsInTimeFrame.map((gitCommit: GitCommit) => {
         return {
           eventType: "change",
           revision: gitCommit.short_id,
           dateTime: TimeUtil.normalizeTime(gitCommit.created_at),
           isMergeCommit: gitCommit.is_merge,
-          ref: branch.commit === gitCommit.short_id ? branch.name : ""
+          ref: branch.commit === gitCommit.short_id || branch.commit === gitCommit.id ? branch.name : ""
         };
       })
     }

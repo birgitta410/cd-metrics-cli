@@ -8,6 +8,7 @@ import { GitRepoClient } from '@/sources/GitRepoClient';
 describe("GitRepoClient", () => {
 
   const testRepoPath = `${process.cwd()}/tests/test-repo`;
+  let repo: GitRepoClient;
 
   // Some fixed expectations about the test repository (to be updated when the test repo changes)
   const MASTER_POINTING_AT_SHA = "2acc03db";
@@ -22,17 +23,21 @@ describe("GitRepoClient", () => {
   }
 
   const loadMasterCommitsFromTestRepo = async (since: moment.Moment, until: moment.Moment) => {
-    return new GitRepoClient(testRepoPath).loadCommitsForBranch({
+    const branches = await repo.loadBranches("master");
+    console.log(`Master branch: ${JSON.stringify(branches[0])}`)  
+    return repo.loadCommitsForBranch({
       since: since,
       until: until,
       branch: "master",
       prodDeploymentJobNames: ["does-not-matter"]
-    }, {
-      name: "master", commit: MASTER_POINTING_AT_SHA
-    });
+    }, branches[0]);
   }
 
   describe("loadCommitsForBranch", () => {
+
+    beforeEach( async () => {
+      repo = await new GitRepoClient(testRepoPath);
+    });
 
     test("should get all commits for the specified branch", async () => {
 
@@ -60,7 +65,27 @@ describe("GitRepoClient", () => {
       
     });
 
-    test.only("should get only commits in the specified timeline", async () => {
+    test("should get commits from branch that is not master", async () => {
+
+      const branches = await repo.loadBranches("some-branch");
+      
+      const actualCommits = await repo.loadCommitsForBranch({
+        since: MASTER_COMMITS_SINCE,
+        until: MASTER_COMMITS_UNTIL,
+        branch: "some-branch",
+        prodDeploymentJobNames: ["does-not-matter"]
+      }, branches[0]);
+
+      expect(actualCommits.length).toBe(3);
+
+      const expectedHeadSha = "e65e3001";
+      const expectedHeadCommit = actualCommits.find(commit => { return commit.revision === expectedHeadSha; });
+
+      expect(expectedHeadCommit).toBeDefined();
+      
+    });
+
+    test("should get only commits in the specified timeline", async () => {
 
       const actualCommits = await loadMasterCommitsFromTestRepo(moment("2020-02-27"), moment("2020-02-29"));
 
@@ -93,7 +118,7 @@ describe("GitRepoClient", () => {
   describe("loadBranches", () => {
     test("should get all branches", async () => {
 
-      const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("*");
+      const actualBranches = await repo.loadBranches("*");
 
       expect(actualBranches.length).toBe(4);
       expect(actualBranches[0].name).toBe("master");
@@ -105,7 +130,7 @@ describe("GitRepoClient", () => {
 
     test("should get all branches matching the specified naming pattern", async () => {
 
-      const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("some*");
+      const actualBranches = await repo.loadBranches("some*");
 
       expect(actualBranches.length).toBe(3);
       
@@ -113,7 +138,7 @@ describe("GitRepoClient", () => {
 
     test("should get master branch for pattern 'master'", async () => {
 
-      const actualBranches = await new GitRepoClient(testRepoPath).loadBranches("master");
+      const actualBranches = await repo.loadBranches("master");
 
       expect(actualBranches.length).toBe(1);
       
@@ -124,7 +149,7 @@ describe("GitRepoClient", () => {
   describe("loadTags", () => {
     test("should get all tags", async () => {
 
-      const actualTags = await new GitRepoClient(testRepoPath).loadTags("*");
+      const actualTags = await repo.loadTags("*");
 
       expect(actualTags.length).toBe(2);
       expect(actualTags[0].name).toBe("v1.0");
@@ -135,7 +160,7 @@ describe("GitRepoClient", () => {
 
     test("should get all tags that match the specified pattern", async () => {
 
-      const actualTags = await new GitRepoClient(testRepoPath).loadTags("v1.0");
+      const actualTags = await repo.loadTags("v1.0");
 
       expect(actualTags.length).toBe(1);
       expect(actualTags[0].name).toBe("v1.0");
