@@ -54,11 +54,33 @@ prepare_repo() {
     fi
 }
 
-if [ -z "$@" ]; then
-    npm run cli -- --help
-else
-    prepare_repo "$@"
-    npm run cli -- "$@"
-fi
+task_local() {
+    if [ -z "$@" ]; then
+        npm run cli -- --help
+    else
+        if [ "$IN_DOCKER" -ne 1 ]; then
+            prepare_repo "$@"
+        fi
+        npm run cli -- "$@"
+    fi
+}
 
+task_docker() {
+    if [ -z "$@" ]; then
+        echo ""
+    else
+        prepare_repo "$@"
+    fi
+    docker run -t -i --name cd-metrics-cli \
+        -e GITLAB_URL -e GITLAB_TOKEN -e IN_DOCKER=1 \
+        --volume $(pwd)/repos/:/usr/src/cd-metrics-cli/repos/ \
+        cd-metrics-cli "$@"
+    docker cp cd-metrics-cli:/usr/src/cd-metrics-cli/cd-metrics-cli-output .
+    docker rm -f cd-metrics-cli
+}
 
+CMD=${1:-}
+case ${CMD} in
+  run-docker) shift || true && task_docker "$@" ;;
+  *) task_local "$@" ;;
+esac
