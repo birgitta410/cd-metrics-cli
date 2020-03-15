@@ -22,6 +22,38 @@ export class CdThroughputEventSeries {
       this.deployments = _.sortBy(deployments, "dateTime");
   }
 
+  private average = (numbers) => {
+    return sum(numbers) / (numbers.length || 1);
+  }
+  
+  private window = (change: CdChangeEvent, windowInDays: number) => {
+    const halfWindow = Math.round(windowInDays/2);
+    const startWindow = moment(change.dateTime).subtract(halfWindow, "days").minutes(0).hours(0);
+    const endWindow = moment(change.dateTime).add(halfWindow, "days").minutes(0).hours(0);
+    const changesInWindow = this.changes.filter(otherChange => {
+      const otherChangeTime = moment(otherChange.dateTime);
+      return otherChangeTime.isAfter(startWindow) && otherChangeTime.isBefore(endWindow);
+    });
+    return {
+      change: change,
+      window: changesInWindow
+    };
+  }
+  
+  public addRollingAverages(windowInDays: number): void {
+    _.chain(this.changes)
+        .map((change) => {
+          return this.window(change, windowInDays)
+        })
+        .map((changeWindow) => {
+          const meanInMinutes = _.meanBy(changeWindow.window, (change) => {
+            return change.metrics!.cycleTime.asMinutes();
+          });
+          changeWindow.change.metrics!.cycleTimeRollingAverage = moment.duration(meanInMinutes, "minutes");
+        })
+        .value();
+  }
+
   public addThroughputMetrics(): void {
     
     this.changes.forEach(changeEvent => {

@@ -82,6 +82,29 @@ describe("CdThroughputCalculator", () => {
         expect((series.changes[4]).metrics).toBeUndefined();
         expect((series.deployments[1]).metrics).toBeUndefined();
       });
+
+      test("should add rolling average of cycle times", () => {
+        
+        const changeEvents = [
+          <CdChangeEvent>{dateTime: "2020-01-02T12:35:00.000+01:00", metrics: {cycleTime: moment.duration(1, "days")}},
+          <CdChangeEvent>{dateTime: "2020-01-03T12:36:00.000+01:00", metrics: {cycleTime: moment.duration(2, "days")}},
+          <CdChangeEvent>{dateTime: "2020-01-04T12:37:00.000+01:00", metrics: {cycleTime: moment.duration(3, "days")}},
+          <CdChangeEvent>{dateTime: "2020-01-05T12:41:00.000+01:00", metrics: {cycleTime: moment.duration(4, "days")}},
+          <CdChangeEvent>{dateTime: "2020-01-06T12:42:00.000+01:00", metrics: {cycleTime: moment.duration(5, "days")}},
+        ];
+        
+        const timeWindowInDays = 2;
+        const series = new CdThroughputEventSeries(changeEvents, []);
+        series.addRollingAverages(timeWindowInDays);
+        
+        expect((series.changes[0]).metrics!.cycleTimeRollingAverage.asHours()).toBe(24);
+        expect((series.changes[1]).metrics!.cycleTimeRollingAverage.asHours()).toBe(36);
+        expect((series.changes[2]).metrics!.cycleTimeRollingAverage.asHours()).toBe(60);
+        expect((series.changes[3]).metrics!.cycleTimeRollingAverage.asHours()).toBe(84);
+        expect((series.changes[4]).metrics!.cycleTimeRollingAverage.asHours()).toBe(108);
+        
+      });
+
     });
   });
 

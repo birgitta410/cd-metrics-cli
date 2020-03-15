@@ -12,6 +12,7 @@ export interface CdChangeEvent extends CdEvent {
   isMergeCommit: boolean,
   metrics?: {
     cycleTime: moment.Duration,
+    cycleTimeRollingAverage: moment.Duration,
     deployment: CdDeploymentEvent
   }
 };
