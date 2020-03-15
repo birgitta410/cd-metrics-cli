@@ -40,6 +40,7 @@ describe("CdChangeService", () => {
       eventType: "change",
       revision: "4b4e5264",
       dateTime: "2020-01-10T17:01:21.000+01:00",
+      authorDateTime: "2020-01-10T17:01:21.000+01:00",
       isMergeCommit: false
     };
   }
@@ -94,20 +95,21 @@ describe("CdChangeService", () => {
 
     });
 
-    test("should not return any changes if multiple branches are returned", async () => {
-      // Explicitly not supporting release branches right now
-      // - commits change their SHAs as they get merged across branches, so there's not way to properly determine what
-      //   change gets deployed when
-      const commit = someCommit();
-      changeReaderMock.loadCommitsForBranch.mockResolvedValue([
-        commit
-      ]);
+    test("should return blend of master and branch changes, if multiple branches are returned", async () => {
+      const branchCommit = someCommit();
+      branchCommit.revision = "branch345";
+      const masterCommit = someCommit();
+      masterCommit.revision = "master124";
 
-      const aBranch: CdChangeReference = someBranch();
+      changeReaderMock.loadCommitsForBranch
+        .mockImplementationOnce(() => Promise.resolve([masterCommit]))
+        .mockImplementationOnce(() => Promise.resolve([masterCommit, branchCommit]));
+
+      const theMasterBranch: CdChangeReference = masterBranch();
       const anotherBranch: CdChangeReference = someBranch();
-      changeReaderMock.loadBranches.mockResolvedValue([
-        aBranch, anotherBranch
-      ]);
+      changeReaderMock.loadBranches
+        .mockImplementationOnce(() => Promise.resolve([theMasterBranch]))
+        .mockImplementationOnce(() => Promise.resolve([anotherBranch]));
 
       const query = {
         since: moment(),
@@ -117,14 +119,11 @@ describe("CdChangeService", () => {
       };
       const actualCommits = await createService().loadChanges(query);
 
-      expect(actualCommits.length).toBe(0);
+      expect(actualCommits.length).toBe(2);
 
     });
 
     test("should return changes only for master even if there are branches that just contain the string 'master'", async () => {
-      // Explicitly not supporting release branches right now
-      // - commits change their SHAs as they get merged across branches, so there's not way to properly determine what
-      //   change gets deployed when
       const commit = someCommit();
       changeReaderMock.loadCommitsForBranch.mockResolvedValue([
         commit

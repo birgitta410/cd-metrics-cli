@@ -22,34 +22,39 @@ export class CdThroughputCalculator {
   private async getTimelineForReleaseReferences(
     changeList: CdEvent[], 
     deploymentList: CdEvent[]) {
+
+    const nonReffedEvents = _.sortBy(_.concat(
+      changeList.filter(event => { return event.ref === undefined || event.ref === ""; }),
+      deploymentList.filter(event => { return event.ref === undefined || event.ref === ""; }),
+    ), "dateTime");
     
-    const chronologicalChanges = _.sortBy(changeList, "dateTime");
-    const chronologicalDeployments = _.sortBy(deploymentList, "dateTime");
+    const eventsByRefs:any = {};
+    const refNames = _.compact(_.uniq(_.concat(
+      changeList.map(event => event.ref),
+      deploymentList.map(event => event.ref),
+    )));
+    refNames.forEach((refName:string) => {
+      const refEvents = _.sortBy(_.compact(_.concat(
+        changeList.filter(event => { return event.ref === refName; }),
+        deploymentList.filter(event => { return event.ref === refName; }),
+      )), "dateTime");
+      eventsByRefs[refName] = refEvents;
+    });
+    
 
     let result: CdEvent[] = [];
-    const refsIncluded: string[] = [];
-
-    chronologicalChanges.map(change => {
-      if(change.ref) {
-        (function createChronologicalListForRef() {
-          if(! refsIncluded.includes(change.ref)) {
-            const changesForRef = chronologicalChanges.filter(otherChange => {
-              return otherChange.ref === change.ref;
-            });
-            const deploymentsForRef = chronologicalDeployments.filter(deployment => {
-              return deployment.ref === change.ref;
-            });
-            const allEventsForRef = _.sortBy(changesForRef.concat(deploymentsForRef), "dateTime");
-            console.log(`Adding ${allEventsForRef.length} events for ${change.ref}`);
-            result = result.concat(allEventsForRef);
-            refsIncluded.push(change.ref);
-          }
-        })();
-        
-      } else {
-        result.push(change);
-      }
-    })
+    nonReffedEvents.forEach(nonRefEvent => {
+      const refGroupsToPushIn = _.keys(eventsByRefs).filter(refName => {
+        const firstEventInGroup = eventsByRefs[refName][0];
+        return moment(firstEventInGroup.dateTime).isBefore(moment(nonRefEvent.dateTime));
+      });
+      refGroupsToPushIn.forEach(refName => {
+        result.push(...eventsByRefs[refName]);
+        delete eventsByRefs[refName];
+      });
+      
+      result.push(nonRefEvent);
+    });
 
     return result;
   }
@@ -80,7 +85,7 @@ export class CdThroughputCalculator {
         `>> Determined ${deploymentList.length} production deployment events\n`
       )}`
     );
-    if(query.branch.startsWith("^") || query.tags) {
+    if(query.branch !== "master" || query.tags) {
       return this.getTimelineForReleaseReferences(changeList, deploymentList);
     } else {
       return this.getChronologicalTimelineFromBranch(changeList, deploymentList);
@@ -120,14 +125,15 @@ export class CdThroughputCalculator {
       gitlabQuery
     );
 
+    const header = `type\trevision\tcreation time\tis merge?\tresult\tref\tauthor time`;
     const output = eventsTimeLine.map(event => {
       return `${event.eventType}\t${event.revision}\t${
         event.dateTime
-      }\t${event.isMergeCommit || ""}\t${event.result || ""}`;
+      }\t${event.isMergeCommit || ""}\t${event.result || ""}\t${event.ref || ""}\t${event.authorDateTime || ""}`;
     });
 
     console.log(`Output number of lines: ${output.length}`);
 
-    await Printer.print(output);
+    await Printer.print(_.concat([header], output));
   }
 }
