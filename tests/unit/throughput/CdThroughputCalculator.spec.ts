@@ -1,6 +1,6 @@
 import moment = require('moment');
 import { CdDeploymentReader, CdEventsQuery, CdDeploymentEvent, CdChangeEvent } from '../../../src/throughput/Model';
-import { CdThroughputCalculator } from '../../../src/throughput/CdThroughputCalculator';
+import { CdThroughputCalculator, CdThroughputEventSeries } from '../../../src/throughput/CdThroughputCalculator';
 
 class CdChangeServiceMock {
   loadChanges(query: CdEventsQuery): Promise<any[]> {
@@ -51,6 +51,39 @@ describe("CdThroughputCalculator", () => {
       isMergeCommit: false
     };
   }
+
+  describe("CdThroughputEventSeries", () => {
+    describe("addThroughputMetrics", () => {
+      test("should add metrics to the events", () => {
+        
+        const changeEvents = [
+          <CdChangeEvent>{eventType: "change", revision: "abcd1", dateTime: "2020-01-31T12:35:00.000+01:00", authorDateTime: "2020-01-31T12:35:00.000+01:00"},
+          <CdChangeEvent>{eventType: "change", revision: "abcd2", dateTime: "2020-01-31T12:36:00.000+01:00", authorDateTime: "2020-01-31T12:34:00.000+01:00"},
+          <CdChangeEvent>{eventType: "change", revision: "abcd3", dateTime: "2020-01-31T12:37:00.000+01:00", authorDateTime: ""},
+          <CdChangeEvent>{eventType: "change", revision: "abcd4", dateTime: "2020-01-31T12:41:00.000+01:00", authorDateTime: ""},
+          <CdChangeEvent>{eventType: "change", revision: "abcd5", dateTime: "2020-01-31T12:42:00.000+01:00", authorDateTime: ""},
+        ];
+        const deploymentEvents = [
+          <CdDeploymentEvent>{eventType: "deployment", revision: "abcd3", dateTime: "2020-01-31T12:40:00.000+01:00", result: "success"},
+          <CdDeploymentEvent>{eventType: "deployment", revision: "abcd5", dateTime: "2020-01-31T12:43:00.000+01:00", result: "failure"}
+        ];
+        
+        const series = new CdThroughputEventSeries(changeEvents, deploymentEvents);
+        series.addThroughputMetrics();
+
+        expect((series.changes[0]).metrics!.deployment.revision).toBe("abcd3");
+        expect((series.changes[0]).metrics!.cycleTime!.asMinutes()).toBe(5);
+        expect((series.changes[1]).metrics!.deployment.revision).toBe("abcd3");
+        expect((series.changes[1]).metrics!.cycleTime!.asMinutes()).toBe(6);
+        expect((series.changes[2]).metrics!.deployment.revision).toBe("abcd3");
+        expect((series.deployments[0]).metrics!.changeSetSize).toBe(3);
+
+        expect((series.changes[3]).metrics).toBeUndefined();
+        expect((series.changes[4]).metrics).toBeUndefined();
+        expect((series.deployments[1]).metrics).toBeUndefined();
+      });
+    });
+  });
 
   describe("getChangesAndDeploymentsTimeline", () => {
     describe("for releasing from a specific branch", () => {

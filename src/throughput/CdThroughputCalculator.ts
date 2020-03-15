@@ -5,12 +5,46 @@ import * as _ from "lodash";
 import {
   CdDeploymentReader,
   CdEventsQuery,
-  CdEvent
+  CdEvent,
+  CdChangeEvent,
+  CdDeploymentEvent
 } from "./Model";
 import { CdChangeService } from './CdChangeService';
 import { Printer } from '../Printer';
 import { TimeUtil } from '../TimeUtil';
 
+export class CdThroughputEventSeries {
+
+  constructor(
+    public changes: CdChangeEvent[], 
+    public deployments: CdDeploymentEvent[]) {
+      this.changes = _.sortBy(changes, "dateTime");
+      this.deployments = _.sortBy(deployments, "dateTime");
+  }
+
+  public addThroughputMetrics(): void {
+    
+    this.changes.forEach(changeEvent => {
+      const nextDeployment = this.deployments.find(deploymentEvent => {
+        const isNextSuccessfulDeployment =  moment(deploymentEvent.dateTime).isAfter(moment(changeEvent.dateTime))
+          && deploymentEvent.result === "success";
+        return isNextSuccessfulDeployment;
+      });
+
+      if(nextDeployment) {
+        nextDeployment.metrics = nextDeployment.metrics || { changeSetSize: 0 };
+        nextDeployment.metrics.changeSetSize ++;
+
+        changeEvent.metrics = {
+          deployment: nextDeployment,
+          cycleTime: moment.duration(moment(nextDeployment.dateTime).diff(moment(changeEvent.authorDateTime)))
+        };
+      }
+
+    });
+
+  }
+}
 
 export class CdThroughputCalculator {
   

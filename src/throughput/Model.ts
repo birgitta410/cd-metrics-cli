@@ -9,16 +9,21 @@ export interface CdEvent {
 
 export interface CdChangeEvent extends CdEvent {
   authorDateTime: string,
-  isMergeCommit: boolean
+  isMergeCommit: boolean,
+  metrics?: {
+    cycleTime: moment.Duration,
+    deployment: CdDeploymentEvent
+  }
 };
 
 export interface CdDeploymentEvent extends CdEvent {
   result: string,
   jobName: string,
-  url?: string
+  url?: string,
+  metrics?: {
+    changeSetSize: number
+  }
 };
-
-
 
 export interface CdChangeReference {
   name: string,
