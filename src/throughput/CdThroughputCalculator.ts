@@ -21,37 +21,56 @@ export class CdThroughputEventSeries {
       this.changes = _.sortBy(changes, "dateTime");
       this.deployments = _.sortBy(deployments, "dateTime");
   }
-
-  private average = (numbers) => {
-    return sum(numbers) / (numbers.length || 1);
-  }
   
-  private window = (change: CdChangeEvent, windowInDays: number) => {
+  private window = (event: CdEvent, windowInDays: number): {event: CdEvent, window: CdEvent[] } => {
     const halfWindow = Math.round(windowInDays/2);
-    const startWindow = moment(change.dateTime).subtract(halfWindow, "days").minutes(0).hours(0);
-    const endWindow = moment(change.dateTime).add(halfWindow, "days").minutes(0).hours(0);
-    const changesInWindow = this.changes.filter(otherChange => {
-      const otherChangeTime = moment(otherChange.dateTime);
+    const startWindow = moment(event.dateTime).subtract(halfWindow, "days").minutes(0).hours(0);
+    const endWindow = moment(event.dateTime).add(halfWindow, "days").minutes(0).hours(0);
+    
+    let eventsToFilter;
+    if(event.eventType === "change") {
+      eventsToFilter = <CdEvent[]>this.changes;
+    } else if (event.eventType === "deployment") {
+      eventsToFilter = <CdEvent[]>this.deployments;
+    } else {
+      throw new Error(`Could not determine event type for ${JSON.stringify(event)}`);
+    }
+    const eventsInWindow = eventsToFilter.filter((otherEvent: CdEvent) => {
+      const otherChangeTime = moment(otherEvent.dateTime);
       return otherChangeTime.isAfter(startWindow) && otherChangeTime.isBefore(endWindow);
     });
     return {
-      change: change,
-      window: changesInWindow
+      event: event,
+      window: eventsInWindow
     };
   }
   
-  public addRollingAverages(windowInDays: number): void {
-    _.chain(this.changes)
-        .map((change) => {
-          return this.window(change, windowInDays)
+  private addRollingAverage(events: any[], windowInDays: number, windowFn: Function) {
+    _.chain(events)
+        .map((event) => {
+          return this.window(event, windowInDays)
         })
         .map((changeWindow) => {
-          const meanInMinutes = _.meanBy(changeWindow.window, (change) => {
-            return change.metrics!.cycleTime.asMinutes();
-          });
-          changeWindow.change.metrics!.cycleTimeRollingAverage = moment.duration(meanInMinutes, "minutes");
+          windowFn(changeWindow)
         })
         .value();
+  }
+
+  public addRollingAverages(windowInDays: number): void {
+    this.addRollingAverage(this.changes, windowInDays, (eventWindow: any) => {
+      const meanInMinutes = _.meanBy(eventWindow.window, (change: CdChangeEvent) => {
+        return change.metrics!.cycleTime.asMinutes();
+      });
+      (<CdChangeEvent>eventWindow.event).metrics!.cycleTimeRollingAverage = moment.duration(meanInMinutes, "minutes");
+    });
+
+    this.addRollingAverage(this.deployments, windowInDays, (eventWindow: any) => {
+      const meanSetSize = _.meanBy(eventWindow.window, (deployment: CdDeploymentEvent) => {
+        return deployment.metrics!.changeSetSize;
+      });
+      (<CdDeploymentEvent>eventWindow.event).metrics!.changeSetRollingAverage = meanSetSize;
+    });
+
   }
 
   public addThroughputMetrics(): void {
