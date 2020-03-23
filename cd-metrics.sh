@@ -71,6 +71,7 @@ task_docker() {
     else
         prepare_repo "$@"
     fi
+    ! docker rm -f cd-metrics-cli
     docker run -t -i --name cd-metrics-cli \
         -e GITLAB_URL -e GITLAB_TOKEN -e IN_DOCKER=1 \
         --volume $(pwd)/repos/:/usr/src/cd-metrics-cli/repos/ \
