@@ -42,7 +42,7 @@ describe("GitRepoClient", () => {
 
       // checking out a branch other than master to make sure the function
       // really gets the master commits and not the branch commits
-      await checkoutRefInTestRepo("some-branch");
+      await checkoutRefInTestRepo("remotes/origin/some-branch");
 
       const actualCommits = await loadMasterCommitsFromTestRepo(MASTER_COMMITS_SINCE, MASTER_COMMITS_UNTIL);
 

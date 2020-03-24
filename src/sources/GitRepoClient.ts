@@ -65,7 +65,7 @@ export class GitRepoClient implements CdChangeReader {
       };
     }
   
-    private loadBatchOfCommits(refName: string, since: moment.Moment): Promise<GitCommit[]> {
+    private loadBatchOfCommitsSince(refName: string, since: moment.Moment): Promise<GitCommit[]> {
       return this.createRevwalk(refName)
         .then(revWalk => {
           return revWalk.getCommitsUntil((commit: nodegit.Commit) => {
@@ -118,7 +118,7 @@ export class GitRepoClient implements CdChangeReader {
     }
 
     public async loadCommitsForBranch(query: CdEventsQuery, branch: CdChangeReference): Promise<CdChangeEvent[]> {
-      const gitCommitsSince = await this.loadBatchOfCommits(branch.originalName || branch.name, query.since);
+      const gitCommitsSince = await this.loadBatchOfCommitsSince(branch.originalName || branch.name, query.since);
       const gitCommitsInTimeFrame = gitCommitsSince.filter((commit: GitCommit) => {
         return moment(commit.authored_at).isBefore(query.until)
           && moment(commit.created_at).isAfter(query.since); // filter out potentially one overincluded commit
