@@ -24,6 +24,7 @@ Example for `stability`:
 ```
 
 ## Use the spreadsheet
+Make a copy of [this spreadsheet](https://docs.google.com/spreadsheets/d/1Va8uzeeUhaS3Am59vuPF8oE6VvQljVCEJUF1Q3y_WT8/edit?usp=sharing).
 
 Paste the results of the "throughput" and "stability" commands, respectively, into the yellow areas of the spreadsheet.
 
