@@ -5,6 +5,7 @@ module.exports = {
   },
   moduleFileExtensions: ["js", "json", "ts"],
   testRegex: "(/tests/unit/.*spec)\\.ts$",
+  testPathIgnorePatterns: ["/repos/"],
   transform: {
     "^.+\\.js$": "babel-jest",
     "^.+\\.tsx?$": "ts-jest"
