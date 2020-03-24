@@ -50,6 +50,8 @@ prepare_repo() {
         echo "--repo not set, skipping local clone or update"
     else
         get_repo_name
+        echo "Will clone/update the repo ${repoName}..."
+        
         clone_or_update_repo
     fi
 }
@@ -58,9 +60,7 @@ task_local() {
     if [ -z "$@" ]; then
         npm run cli -- --help
     else
-        if [ "$IN_DOCKER" -ne 1 ]; then
-            prepare_repo "$@"
-        fi
+        prepare_repo "$@"
         npm run cli -- "$@"
     fi
 }
