@@ -20,8 +20,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      with:
-        submodules: 'true'
+    - name: Init test submodule
+      shell: bash
+      run: |
+        git config --global url."https://github.com/".insteadOf "git@github.com:"
+        git submodule init
+        git submodule update
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v1
       with:
