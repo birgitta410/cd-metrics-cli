@@ -1,5 +1,6 @@
 import nodegit from "nodegit";
 import moment from "moment";
+import chalk from "chalk";
 import * as _ from "lodash";
 import { CdChangeReader, CdEventsQuery, CdChangeReference, CdChangeEvent } from '../throughput/Model';
 import { TimeUtil } from '../TimeUtil';
@@ -43,9 +44,17 @@ export class GitRepoClient implements CdChangeReader {
       const tagReferences = _.filter(references, ref => {
         return ref.isTag() === 1;
       });
-      return Promise.all(tagReferences.map(tagRef => {
-        return repo.getTagByName(tagRef.name())
+      const tags = await Promise.all(tagReferences.map(async (tagRef) => {
+        const tag = repo.getTagByName(tagRef.name()).catch(error => {
+          // FIXME: Maybe this is happening with missing tag messages?
+          // https://github.com/nodegit/nodegit/issues/1311
+          console.log(`${chalk.yellow(`WARNING:`)} Error getting tag ${tagRef.name()}: ${error}`);
+        });
+        return tag;
       }));
+      const successfullyLoadedTags = <nodegit.Tag[]>_.compact(tags);
+      console.log(`Successfully read ${successfullyLoadedTags.length}/${tagReferences.length} tags`);
+      return successfullyLoadedTags;
     }
 
     private authoringTime(commit: nodegit.Commit): moment.Moment {
