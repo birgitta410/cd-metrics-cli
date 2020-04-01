@@ -9,6 +9,7 @@ import { RequestHelper } from "../RequestHelper";
 import { CdEventsQuery, CdChangeReader, CdDeploymentReader, CdDeploymentEvent, CdChangeEvent, CdChangeReference } from "../throughput/Model";
 import { CdPipelineReader, CdPipelineRun, CdJobRun, CdStabilityQuery } from '@/stability/Model';
 import { TimeUtil } from '../TimeUtil';
+import { GitlabClientOffline } from './GitlabClientOffline';
 
 export class GitlabConfig {
   constructor(public url: string, public projectId: number) {}
@@ -117,6 +118,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
         updated_before: TimeUtil.gitlabApiDateString(query.until)
       });
     }));
+    GitlabClientOffline.writeJson(`getPipelinesForReferences-Pipelines.all-${this.projectId}`, pipelinesPerRef);
     const pipelines = _.flatten(pipelinesPerRef);
     
     console.log(`Got ${chalk.cyanBright(pipelines.length)} pipeline runs on branch(es)/tag(s) ${chalk.cyanBright(targetRefs)}`);
@@ -130,8 +132,10 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
 
     const jobsForPipelinesInBranch = await RequestHelper.executeInChunks(pipelines, async (p: any) => {
       const jobs = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
+      GitlabClientOffline.writeJson(`loadProductionDeployments-Pipelines.showJobs-${this.projectId}-${p.id}`, jobs);
       return this.findProdDeploymentJob(jobs, p.id, filterForJobNames);
     });
+
     
     const compactedJobs = _.chain(jobsForPipelinesInBranch)
       .compact()
@@ -156,6 +160,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const branches = await <any[]><unknown>this.api.Branches.all(this.projectId, {
       search: branchSearchPattern
     });
+    GitlabClientOffline.writeJson(`loadBranches-Branches.all-${this.projectId}`, branches);
     return branches.map((b) => {
       return {
         name: b.name,
@@ -178,6 +183,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const tags = await <any[]><unknown>this.api.Tags.all(this.projectId, {
       search: tagSearchPattern
     });
+    GitlabClientOffline.writeJson(`loadTags-Tags.all-${this.projectId}`, tags);
     return tags.map((b) => {
       return {
         name: b.name,
@@ -210,6 +216,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
         ref: branchName
       });
     }));
+    GitlabClientOffline.writeJson(`getAllPipelines-Pipelines.all-${this.projectId}`, pipelineRunsPerBranch);
     
     const pipelineRuns = _.flatten(pipelineRunsPerBranch);
     
@@ -224,6 +231,7 @@ export class GitlabClient implements CdChangeReader, CdDeploymentReader, CdPipel
     const allPipelineRuns: CdPipelineRun[] = await RequestHelper.executeInChunks(pipelineRuns, async (p: any) => {
       
       const jobsInPipelineRun = await <any[]><unknown>this.api.Pipelines.showJobs(this.projectId, p.id);
+      GitlabClientOffline.writeJson(`loadPipelines-Pipelines.showJobs-${this.projectId}-${p.id}`, jobsInPipelineRun);
       const jobRuns = jobsInPipelineRun.map(GitlabDataMapper.toCdJobRun);
       return GitlabDataMapper.toCdPipelineRun(p, jobRuns);
     });
