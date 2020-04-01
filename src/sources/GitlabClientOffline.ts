@@ -8,7 +8,7 @@ import chalk from "chalk";
 export class GitlabClientOffline implements CdPipelineReader {
 
     public static writeJson(fileIdentifier: string, data: any) {
-        fs.writeFileSync(`${fileIdentifier}-${moment().toISOString()}.json`, JSON.stringify(data));
+        fs.writeFileSync(`./offline-data/${fileIdentifier}-${moment().toISOString()}.json`, JSON.stringify(data));
     }
 
     public static readJson(fileName: string): any {
